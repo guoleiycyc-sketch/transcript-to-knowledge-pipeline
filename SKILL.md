@@ -1,6 +1,7 @@
 ---
 name: transcript-to-knowledge-pipeline
 description: "把一份对话类录音转写稿（飞书妙记/得到大脑/Tencent Meeting/Whisper/手工整理稿），经过严格的说话人映射和清洗，产出 9 模块结构化知识包 + 自包含可搜索深浅主题 HTML 的完整工程化管线。本 skill 是**自包含**的工程化管线（已内联 HTML 渲染器与格式模板，无外部 skill 依赖）——把管线执行过程中的全部陷阱（说话人误判、ASR 错字、格式 bug、字段遗漏、HTML 渲染失败）显式化为 6 次发布前必查和持续累积的 pitfalls 库。一旦用户要把转写稿整理成知识包/网页文档/可搜索页面，并希望过程严格、有检查清单、可复用，立刻触发本 skill。"
+version: 1.0.0
 ---
 
 # Transcript → Knowledge Pipeline
