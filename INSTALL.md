@@ -29,14 +29,14 @@
 1. **说话人映射是最高风险环节**：skill 会在清洗前要求你确认每个 ASR 标签对应谁，绝不能凭「被怎么称呼」判定身份，必须用「角色指纹 + 时间线 + 你二次确认」。
 2. **金句原话一字不改**，ASR 听不准的标 `[ASR/存疑]`，不臆造。
 3. 默认**逐回合还原**（一场 150–700 回合），忠实优先于简洁。
-4. 产物落在 `<场次名>_YYYY-MM-DD/` 子目录，含 `01_清洗稿.md` … `09_战略诊断.md` + `index.html`。双击 `index.html` 即开（CSS/JS 全内联，可离线、可发给别人）。
-5. 每次交付前 skill 会自动跑 **6 次发布前必查**（说话人一致性 / ASR 残留 / 金句格式 / 结构 / HTML / README）。
+4. 产物落在 `<场次名>_YYYY-MM-DD/` 子目录，含 `00_执行摘要.md`、`01_清洗稿.md` … `09_行动清单.md` + `index.html`。双击 `index.html` 即开（CSS/JS 全内联，可离线、可发给别人）。多场次项目另有 `_全局资产/` 跨场累积层。
+5. 每次交付前 skill 会自动跑 **6+1 次发布前必查**（说话人一致性 / ASR 残留 / 金句格式 / 结构 / HTML / README + 跨会话同步），一键：`bash scripts/pipeline_check.sh <场次目录>`。
 
 ## 五、装完自检
 ```bash
 ls ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/render_pack.py
 ls ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/build_html.py
-python3 ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/render_pack.py --help 2>/dev/null || echo "python3 就绪（无 --help 属正常）"
+bash ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/pipeline_check.sh 2>/dev/null || echo "脚本就绪（无参运行报用法属正常）"
 ```
 
 ## 六、结构
@@ -44,12 +44,15 @@ python3 ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/render_pack.py
 transcript-to-knowledge-pipeline/
   ├─ SKILL.md                         ← 入口（Claude 读这个）
   ├─ INSTALL.md                       ← 本文件
-  ├─ references/01–07.md              ← 清洗 + 9 模块 + 检查 + pitfalls
+  ├─ references/01–08.md              ← 清洗 + 9 模块 + 检查 + pitfalls + 跨会话同步
   ├─ references/format-templates.md        ┐ 已内联的格式模板
   ├─ references/build-html-guide.md        ┘ 与 HTML 改造指南
   └─ scripts/
-       ├─ render_pack.py               ← 生成 index.html（入口）
-       └─ build_html.py                ← 渲染器母版（CSS/JS/通用渲染）
+       ├─ render_pack.py               ← 生成单场 index.html（入口）
+       ├─ build_html.py                ← 渲染器母版（CSS/JS/通用渲染）
+       ├─ pipeline_check.sh            ← 一键发布前必查 6+1 项
+       ├─ extract_atoms.py             ← 跨场抽取原子 → _全局资产/
+       └─ render_views.py              ← 全局视图（含脱敏分享版）
 ```
 
 有问题找分享给你的人。祝用得顺手。

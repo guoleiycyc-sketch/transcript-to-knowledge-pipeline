@@ -1,7 +1,7 @@
 ---
 name: transcript-to-knowledge-pipeline
 description: "把一份对话类录音转写稿（飞书妙记/得到大脑/Tencent Meeting/Whisper/手工整理稿），经过严格的说话人映射和清洗，产出 9 模块结构化知识包 + 自包含可搜索深浅主题 HTML 的完整工程化管线。本 skill 是**自包含**的工程化管线（已内联 HTML 渲染器与格式模板，无外部 skill 依赖）——把管线执行过程中的全部陷阱（说话人误判、ASR 错字、格式 bug、字段遗漏、HTML 渲染失败）显式化为 6 次发布前必查和持续累积的 pitfalls 库。一旦用户要把转写稿整理成知识包/网页文档/可搜索页面，并希望过程严格、有检查清单、可复用，立刻触发本 skill。"
-version: 1.0.0
+version: 2.0.0
 ---
 
 # Transcript → Knowledge Pipeline
@@ -24,12 +24,12 @@ version: 1.0.0
 - "做整套知识沉淀、9 模块、双击即开网页"
 - "复现上次那条管线 / 按标准管线出"
 
-## 全流程（5 阶段 + 6 检查）
+## 全流程（5 阶段 + 6 检查 + 1 一键脚本）
 
 ```
-① Intake + 说话人映射  ←—— 最高风险阶段
+① Intake + 说话人映射  ←—— 最高风险阶段（含「账号名≠本人」第三种陷阱）
       ↓
-② 清洗（01_清洗稿）    ←—— 必经两次：标签脏数据检测 + 修复
+② 清洗（01_清洗稿）    ←—— 双源字段必写，必经两次：标签脏数据检测 + 修复
       ↓
 ③ 9 模块产出（02–09）   ←—— 金句格式 `**【姓名】** [ts] 原话` 必准
       ↓
@@ -37,21 +37,26 @@ version: 1.0.0
       ↓
 ⑤ 跨场呼应 + README
       ↓
-╔══════════════════════════════════╗
-║ 发布前 6 次必查（见 references/05） ║
-╚══════════════════════════════════╝
+╔═══════════════════════════════════════════════════╗
+║ 发布前必查 6+1 项（场内 6 项见 references/05，跨   ║
+║ 会话 1 项见 references/08）                            ║
+║ 一键：bash scripts/pipeline_check.sh <场次目录>     ║
+╚═══════════════════════════════════════════════════╝
 ```
 
 每阶段开工前必读对应 references：
 
 | 阶段 | 参考 |
 |---|---|
-| ① Intake + 说话人映射 | `references/01-intake-speaker-mapping.md` |
-| ② 清洗 + ASR | `references/02-cleansing-asr.md` |
+| ① Intake + 说话人映射 | `references/01-intake-speaker-mapping.md`（含账号名陷阱） |
+| ② 清洗 + ASR（含双源字段） | `references/02-cleansing-asr.md` |
 | ③ 9 模块 | `references/03-nine-modules.md` |
 | ④ HTML | `references/04-html-assembly.md` |
-| ⑤–⑥ 检查 + pitfalls | `references/05-quality-checks.md`、`references/06-pitfalls.md` |
-| 模板 | `references/07-templates.md` |
+| ⑤ 跨场呼应 + README | `references/05-quality-checks.md`、`references/07-templates.md` |
+| **跨会话同步**（订正后/场次完成后） | **`references/08-cross-session-sync.md`** |
+| Pitfalls 库 | `references/06-pitfalls.md` |
+
+**脚本**：`scripts/pipeline_check.sh <场次目录> [人名...]` —— 一键跑场内 6 项 + 跨会话 1 项（人名自动从 01 头部映射提取）。
 
 ## 全局硬规范
 
@@ -86,17 +91,19 @@ grep -cE '^\*\*【[^】]*\*\* \[' <场次目录>/01_清洗稿.md   # 应 = 0
 ```
 <项目根>/
   <场次名>_YYYY-MM-DD/
+    ├── 00_执行摘要.md             ← BLUF 四段式（局势→本场决策→待办→风险/未决），≤200 字【v2 新增】
     ├── 01_清洗稿.md
-    ├── 02_主题整理/
-    ├── 03_方法论清单.md
-    ├── 04_术语表.md
-    ├── 05_人物角色卡.md          ← 必须 ## 人名 + **背景与立场**：+ 约 XX%
+    ├── 02_主题整理/               ← 只做描述性编码；金句字段=引用制【v2】
+    ├── 03_方法论清单.md           ← 只收"遇 X→执行 Y"型+本场新增；禁反方【v2】
+    ├── 04_术语表.md               ← 只留外部名词；人名→05 指针、方法论→03 指针【v2】
+    ├── 05_人物角色卡.md          ← ## 人名 + **背景与立场**： + 约 XX% + 较上场的变化【v2】
     ├── 06_关键数据速查.md
-    ├── 07_议题关联地图.md         ← **母题**：+ ```ASCII 图（必须代码块）
-    ├── 08_洞察卡片.md             ← 每张 ## 卡 N · 标题 + 核心/证据/启示/反方
-    ├── 09_战略诊断与行动清单.md   ← 仅咨询/诊断类
+    ├── 07_议题关联地图.md         ← **母题**：+ ```ASCII 图（只画本场结构，跨场归 README/全局层）【v2】
+    ├── 08_洞察卡片.md             ← 每张 ## 卡 N · 标题 + 核心/证据/启示/反方（必有反方、禁操作步骤）【v2】
+    ├── 09_行动清单.md             ← 凡有待办即出；开头=上期行动回顾；行动带状态列【v2】
     ├── README.md
     └── index.html                 ← render_pack.py 一键生成
+  _全局资产/                        ← 跨场累积层：引语库/方法论总库/干系人档案/决策日志/母题总图/词表【v2 新增】
 ```
 
 ### 忠实原则
@@ -132,8 +139,19 @@ mkdir -p "<项目根>/<场次名>_YYYY-MM-DD/02_主题整理"
 # 4. 渲染 HTML
 python ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/render_pack.py <场次目录>
 
-# 5. 6 次发布前必查（references/05）
+# 5. 发布前必查（场内 6 项 + 跨会话 1 项）—— 一键：
+bash ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/pipeline_check.sh <场次目录>
+
 # 6. 写 README.md（包含跨场呼应）
+# 7. 跨会话同步（references/08）：
+#    - 主题总 README 链表追加新场次
+#    - 总览 HTML 链表+链接校验
+#    - 来源索引状态列（得到大脑 _索引.md / 腾讯会议 _索引.md）
+#    - 人物映射记忆 + 进度记忆
+# 8. 全局层维护（v2，每场完成后）：
+#    - 抽取原子：python3 scripts/extract_atoms.py <录音项目根>
+#    - 生成视图：python3 scripts/render_views.py <录音项目根> --view methods|quotes|share
+#      share = 脱敏分享版 HTML（过滤价格/健康级引语，可直接发团队/客户）
 ```
 
 ## 与已有三场知识包的关系

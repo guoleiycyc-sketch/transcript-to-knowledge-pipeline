@@ -153,7 +153,22 @@ ls -la "<项目根>/<原始逐字稿文件>"
 
 ---
 
-## 检查命令汇总（一键跑）
+### 必查 0（补丁）：人名一致性
+
+身份订正后必跑（详见 `references/08` 第一点）：
+
+```bash
+cd "<场次目录>"
+bash scripts/pipeline_check.sh .   # 一键必查 6+1 项（含本节人名一致性）
+# 或手工：
+grep -rn "旧名" --include="*.md" . | grep -v "曾作\|原文\|疑"  # 应为空
+```
+
+`scripts/pipeline_check.sh` 自动从 01 头部映射提取人名，无需传参；亦可 `bash pipeline_check.sh . <人名1> <人名2> ...` 显式指定。
+
+---
+
+# 检查命令汇总（一键跑）
 
 ```bash
 cd "<场次目录>"
