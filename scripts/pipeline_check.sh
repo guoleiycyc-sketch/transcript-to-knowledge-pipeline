@@ -83,7 +83,7 @@ done
 NSEG=$(ls 02_主题整理/ 2>/dev/null | grep -cE '^第[0-9]+段')
 echo "  02 段数: $NSEG"
 CARDS=$(LC_ALL=C grep -cE '^## 卡 [0-9]+' 08_洞察卡片.md 2>/dev/null || echo 0)
-COUNTER=$(LC_ALL=C grep -c '^\*\*反方\*\*' 08_洞察卡片.md 2>/dev/null || echo 0)
+COUNTER=$(LC_ALL=C grep -cE '^\*\*反方' 08_洞察卡片.md 2>/dev/null || echo 0)  # v2.1 反方分级标注 **反方（A）** 形态兼容
 [ "$CARDS" -gt 0 ] && [ "$CARDS" -eq "$COUNTER" ] && ok "洞察卡 $CARDS 张，反方数匹配" \
   || warn "洞察卡 $CARDS 张，反方 $COUNTER 处（应相等）"
 
@@ -162,6 +162,7 @@ done
 echo
 echo -e "${B}[检查 7] 全局层同步（v2）${N}"
 GLOBAL_DIR="$THEME_DIR/../_全局资产"
+[ -d "$GLOBAL_DIR" ] || GLOBAL_DIR="$THEME_DIR/../../_全局资产"  # v2.3.4：_成果目录 等子目录场次向上回退
 if [ -d "$GLOBAL_DIR" ]; then
   for asset in 引语库.md 方法论总库.md 干系人档案.md 决策与行动日志.md 母题总图.md; do
     [ -f "$GLOBAL_DIR/$asset" ] && echo "  ✓ $asset" || warn "$asset 缺失"

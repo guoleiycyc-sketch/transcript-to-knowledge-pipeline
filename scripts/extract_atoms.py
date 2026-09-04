@@ -7,7 +7,7 @@
 - 不传场次目录时**递归扫描**整个项目树（跳过 .git/_知识库/录音来源 等），
   凡「目录名以 _YYYY-MM-DD 结尾 且 含 03_方法论清单.md」即视为场次。
   旧版只扫固定两层，嵌套场次（E合作/02_沟通与会议/、_成果目录/ 等）
-  曾两次漏抽（2026-08-25 第33场、2026-09-03 第42场），勿回退
+  曾两次漏抽（2026-08-25 某场次、2026-09-03 某场次），勿回退
 - 原子类型：quote / method / insight / person / decision
 - 重复执行安全：按 id 去重，重跑只增量
 """
@@ -55,10 +55,27 @@ def sid_of(path):
     m = re.search(r'(\d{4}-\d{2}-\d{2})', path)
     return m.group(1)[5:] if m else os.path.basename(path)[:12]
 
+def date_suffix_map(dirs):
+    """同日多场按目录名排序：第一场无后缀（兼容存量 atoms 的 q-09-03-xx 格式），
+    第二场起加 b/c/d…（2026-09-04 实战 bug：同日两场 sid 撞号，后入库场的
+    7 条 method 被先入库场按 id 去重吞并）。"""
+    from collections import defaultdict
+    by_date = defaultdict(list)
+    for d in dirs:
+        by_date[sid_of(d)].append(d)
+    mapping = {}
+    for date, lst in by_date.items():
+        lst.sort()
+        for i, d in enumerate(lst):
+            mapping[os.path.abspath(d)] = date + ('' if i == 0 else chr(ord('a') + i))
+    return mapping
+
 def extract():
     atoms = []
-    for p in sessions():
-        sid = sid_of(p)
+    sess = sessions()
+    uid_map = date_suffix_map(sess)
+    for p in sess:
+        sid = uid_map.get(os.path.abspath(p), sid_of(p))
         # quotes（README 金句速查，回退 01 附录 B）
         src = ''
         rp = os.path.join(p, 'README.md')

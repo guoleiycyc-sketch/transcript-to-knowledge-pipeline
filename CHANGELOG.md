@@ -2,6 +2,11 @@
 
 维护纪律见 `MAINTENANCE.md`：改 scripts/references 必升版本号 + 在此追加条目 + 跑 `scripts/regression_check.py`。对外发布走 `make_release.py`（脱敏构建，勿手推公开仓）。
 
+## 2.3.5（2026-09-04 · 实战反哺三修）
+- **extract_atoms 同日多场 sid 撞号修复**（P30）：id 只含日期→同日场次互吞；改 `date_suffix_map`（第一场无后缀兼容存量、第二场起 b/c/d）。实战暴露**历史欠账**：多个同日场次数百条原子自 8 月建库起从未入库，修复重跑后全量补回，方法论/引语视图已重渲
+- pipeline_check 反方计数正则放宽（`^\*\*反方` 前缀匹配）——v2.1 反方分级标注 `**反方（A）**` 形态与旧检查 `^\*\*反方\*\*` 不匹配，曾报「反方 0」假警
+- pipeline_check 检查 7 全局层路径回退（`_成果目录/` 等子目录场次向上多找一层 `_全局资产`）
+
 ## 2.3.4（2026-09-04 · 可发布化）
 - build_html.py 首场死数据清理（-371 行）：SEG_META/PEOPLE_COLOR 等 6 组硬编码与 6 个首场函数 stub 化、main 删除——一次性消掉 50 处人名+1 价格，render_pack monkey-patch 契约不变（回归全绿）
 - render_method 母版标题改「方法论清单」
