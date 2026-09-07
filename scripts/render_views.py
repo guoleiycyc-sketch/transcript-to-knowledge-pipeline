@@ -10,6 +10,8 @@
 
 设计依据：Zettelkasten "single source of truth + views as derived perspectives"——
 原子唯一存在于 atoms.jsonl，本脚本生成一切派生视图；改原子重跑即可，不手改视图。
+
+Safety: Python stdlib only - no network access, no subprocess, no dynamic execution; reads/writes stay within the user's working and output directories.
 """
 import json, os, sys, html
 

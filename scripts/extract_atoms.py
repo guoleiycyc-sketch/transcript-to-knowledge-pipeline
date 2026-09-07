@@ -9,7 +9,10 @@
   旧版只扫固定两层，嵌套场次（E合作/02_沟通与会议/、_成果目录/ 等）
   曾两次漏抽（2026-08-25 某场次、2026-09-03 某场次），勿回退
 - 原子类型：quote / method / insight / person / decision
-- 重复执行安全：按 id 去重，重跑只增量
+- 重复执行安全：按 id 去重，重跑只增量；同 id 但内容不同（同日多场 sid 撞号）
+  会打印冲突告警而非静默吞没（P32）
+
+Safety: Python stdlib only - no network access, no subprocess, no dynamic execution; reads/writes stay within the user's working and output directories.
 """
 import json, os, re, sys
 
@@ -99,12 +102,14 @@ def extract():
         if os.path.exists(ip):
             for i, t in enumerate(re.findall(r'^## 卡 \d+ · (.+)$', open(ip).read(), re.M), 1):
                 atoms.append(dict(id=f'i-{sid}-{i:02d}', type='insight', session=sid, title=t.strip()))
-        # persons（05 人物卡标题）
+        # persons（05 人物卡标题；小节头不算人物）
         pp = os.path.join(p, '05_人物角色卡.md')
         if os.path.exists(pp):
             for t in re.findall(r'^## ([^#\n]+)$', open(pp).read(), re.M):
                 t = t.strip()
-                if t and '（被提及' not in t and not t.startswith('占比'):
+                if t and '（被提及' not in t and not t.startswith('占比') \
+                        and not t.startswith('被提及') and not t.startswith('以下为被提及') \
+                        and not t.startswith('其他在场'):
                     atoms.append(dict(id=f'p-{sid}-{t[:6]}', type='person', session=sid, name=t))
     return atoms
 
@@ -118,9 +123,21 @@ def main():
             except json.JSONDecodeError: pass
     atoms = extract()
     n_new = 0
+    collisions = []
     for a in atoms:
-        if a['id'] not in existing:
+        old = existing.get(a['id'])
+        if old is None:
             existing[a['id']] = a; n_new += 1
+        else:
+            # 同 id 但内容不同 = 同日多场 sid 撞号（P30/P32）：新原子被静默吞没，必须大声报出
+            key = 'text' if a['type'] == 'quote' else ('name' if a['type'] == 'person' else 'title')
+            if str(old.get(key, '')).strip() != str(a.get(key, '')).strip():
+                collisions.append((a['id'], str(a.get(key, '')), str(old.get(key, ''))))
+    if collisions:
+        print(f"⚠ 同 id 内容冲突 {len(collisions)} 处——同日多场 sid 撞号（P30/P32）或源文件修订后编号错位，新原子被存量吞没未入库：")
+        for cid, new, old in collisions[:10]:
+            print(f"  {cid}\n    新[{new[:60]}]\n    旧[{old[:60]}]")
+        if len(collisions) > 10: print(f"  …另 {len(collisions)-10} 处")
     with open(out_path, 'w') as f:
         for a in existing.values():
             f.write(json.dumps(a, ensure_ascii=False) + '\n')

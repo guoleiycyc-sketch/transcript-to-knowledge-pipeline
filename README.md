@@ -8,7 +8,7 @@
 
 适合：会议录音、访谈、圆桌、咨询、直播、闲聊的转写整理与知识沉淀。
 
-## 特性（v2.3）
+## 特性（v2.4）
 
 - 🎯 **说话人映射零误判**：角色指纹 + 时间线 + 二次确认，覆盖 8 类陷阱（称呼≠身份 / 账号名≠本人 / 多人压一标签按时段切分 / 双身份标签 / 视频原声误归 / 会后混录 / 旁听无标签 / 用户首认不绝对）
 - 📝 **逐回合还原**：忠实对话流（150–700 回合/场），金句原话一字不改，`verify_quotes.py` 引文逐字核证（时间戳命中 + 子串校验 + 敷衍反方检测）
@@ -16,9 +16,11 @@
 - 🗺️ **结构件图形化**：ASCII 分层图→彩色层带卡、→ 链路→节点胶囊流（节点可点击下潜）；圈号①-⑳ 全文可点段链接
 - 🧹 **ASR 订正**：对照表 + `[ASR/存疑]` 标注 + 双源场次对齐，不臆造；英文场/特长场边缘规范
 - 📦 **9 模块知识包 + 六档产出**：极轻/轻/轻加强/专项/标准/重装，按决策密度×外部受众×资产含量分档
-- 🤖 **批量清洗模式**：flash 子代理流水线（输出纪律模板 + 主对话逐场质检），参考 `references/09`
+- 🤖 **批量清洗模式**：轻量模型子代理流水线（输出纪律模板 + 主对话逐场质检），参考 `references/09`
+- 🤝 **单场委派模式**（v2.4 新增）：清洗稿由轻量模型子代理生产，主对话只做映射裁决+质检+模块提炼（实测主对话成本降约 70%），参考 `references/10`
 - ✅ **8 项发布前必查**：`pipeline_check.sh` 一键（含三层收敛与收尾三问）+ 渲染自检（锚点有效性/字数/回归护栏）
 - 🗂️ **跨场全局层**：`extract_atoms.py`（递归扫描）抽取原子，`render_views.py` 出脱敏分享版
+- 🧠 **37 条实战坑库**：全部来自真实翻车，每条带检测/修复命令，持续累积
 - 🔌 **零依赖**：单 skill 自包含，python3 标准库即可
 
 ## 快速安装
@@ -28,7 +30,7 @@ git clone https://github.com/guoleiycyc-sketch/transcript-to-knowledge-pipeline.
   ~/.claude/skills/transcript-to-knowledge-pipeline
 ```
 
-> 前置：Claude Code + python3（3.6+，无需 pip install）。装完重启 Claude Code。用法与产物结构见 [`INSTALL.md`](./INSTALL.md)，变更史见 [`CHANGELOG.md`](./CHANGELOG.md)。
+> 前置：Claude Code + python3（3.6+，无需 pip install）。装完重启 Claude Code。WorkBuddy 用户可从技能市场安装（装到 `~/.workbuddy/skills/`）。命令中的 `<skill目录>` 指本 skill 安装位置，Skill 调用时基目录会自动给出。用法与产物结构见 [`INSTALL.md`](./INSTALL.md)，变更史见 [`CHANGELOG.md`](./CHANGELOG.md)。
 
 ## 致谢
 

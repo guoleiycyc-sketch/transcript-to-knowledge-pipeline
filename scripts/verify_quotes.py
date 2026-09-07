@@ -14,6 +14,8 @@ verify_quotes.py <场次目录>
 
 用法（pipeline_check.sh 已自动挂接，也可单跑）：
   python3 verify_quotes.py <场次目录>
+
+Safety: Python stdlib only - no network access, no subprocess, no dynamic execution; reads/writes stay within the user's working and output directories.
 """
 import re, sys, glob, os
 

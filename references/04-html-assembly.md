@@ -1,22 +1,24 @@
 # 阶段 ④ HTML 组装
 
-## v2.3 渲染行为速览（2026-09-04 起，改动渲染器前必读）
+## v2.3.8 渲染行为速览（2026-09-06 起，改动渲染器前必读）
 
-**页面结构顺序**：`① 执行摘要(brief) → ② 全文总结(digest) → 人物卡 → 议题地图 → 洞察卡 → 方法论 → 战略诊断 → 术语表 → 数据速查 → 主题分段 seg1-N（全文层垫底）`。有②层时不再渲染自动总览（定制 00_总览.md 与无②层老场除外）。
+**页面结构顺序**：`阅读协议横幅 → ① 执行摘要卡(brief，可折叠 details 默认展开：局势+决策要点+待办表精简+风险行+「跳过摘要」锚) → ② 分段速览(digest：每段一行卡=段号+标题+## 摘要+「展开该段」；母题/洞察胶囊/战略链接) → 人物卡 → 议题地图 → 洞察卡 → 方法论 → 战略诊断 → 术语表 → 数据速查 → 主题分段 seg1-N（全文层垫底）`。有②层时不再渲染自动总览（定制 00_总览.md 与无②层老场除外）；**无 00_执行摘要 的场整块三层导航不渲染**（结构与旧版一致）。
 
-**折叠策略（结论展开、过程折叠）**：展开=①摘要/②各段要点/洞察卡/方法论卡/数据表；折叠=段「②详析」（details + JS 锚点自动展开）/段原文节选/②层待办表/人物详细卡/命中校验（质检数据）。
+**层间锚点（摘要层→③层）**：模块容器用既有稳定 id（#people/#map/#insights/#method/#strategy/#glossary/#data/#segN/#insight-N）；①卡内人名与待办 Owner 列自动链接 #people、卡N→#insight-N，圈号①-⑳ inline_fmt 原生链接 #segN，手写 `[文本](#锚点)` 也走 dive-link。
+
+**折叠策略（结论展开、过程折叠）**：展开=①摘要卡/②速览行/洞察卡/方法论卡/数据表；折叠=①卡本体（可折叠但默认展开）/段「②详析」（details + JS 锚点自动展开）/段原文节选/人物详细卡/命中校验（质检数据）。
 
 **图形化**：``` 代码块先过 `try_render_graph` 定向解析——①分层带（层名行+圈号条目，读「—— 绿」颜色意图）②线路流（→≥2）；失败回退深色终端卡。正文圈号①-⑳ 全局渲染为可点段链接，「 → 」渲染为彩箭头。
 
-**渲染自检**（render_pack 末尾自动）：副标题星号泄漏/旧对比色残留/死类复活/重复注/锚点有效性/②层字数。改渲染器后另跑 `scripts/regression_check.sh`（两个样板场断言）。变更须记 CHANGELOG.md 并升 SKILL.md version。
+**渲染自检**（render_pack 末尾自动）：副标题星号泄漏/旧对比色残留/死类复活/重复注/锚点有效性/②层字数。改渲染器后另跑 `scripts/regression_check.py`（两个样板场断言）。变更须记 CHANGELOG.md 并升 SKILL.md version。
 
 
 
-## 一条命令出 HTML
+## 一条命令出 HTML（输出 <场次名>.html）
 
 ```bash
-python ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/render_pack.py <场次目录>
-# 可选：python ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/render_pack.py <场次目录> --brand "显示名"
+python <skill目录>/scripts/render_pack.py <场次目录>
+# 可选：python <skill目录>/scripts/render_pack.py <场次目录> --brand "显示名"
 ```
 
 **不要试图手写 HTML**——`render_pack.py` 自动从 md 文件提取：
@@ -26,7 +28,7 @@ python ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/render_pack.py 
 - 母题（从 07 的 `**母题**：`）
 - 各类计数
 
-生成 `index.html`（自包含 CSS/JS 内联，双击即开）。
+生成 `<场次名>.html`（自包含 CSS/JS 内联，双击即开）。
 
 ---
 
@@ -123,7 +125,7 @@ if __name__ == "__main__":
 # 场次名 · 知识包
 
 ## 怎么看
-打开 `index.html`（双击即开，CSS/JS 全内联，无外部依赖）。
+打开 `<场次名>.html`（双击即开，CSS/JS 全内联，无外部依赖）。
 
 左侧导航 / 全文搜索高亮 / 金句点击复制 / 时间戳跳原文 / 表格排序 / 深浅主题。
 

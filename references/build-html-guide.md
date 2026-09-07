@@ -14,7 +14,7 @@ python <skill路径>/scripts/render_pack.py <场次目录> [--brand "显示名"]
 
 例：
 ```bash
-python ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/render_pack.py \
+python <skill目录>/scripts/render_pack.py \
   ~/Desktop/某项目/某某讨论_2026-08-10 --brand "某某讨论"
 ```
 

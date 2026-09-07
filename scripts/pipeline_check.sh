@@ -2,6 +2,7 @@
 # pipeline_check.sh — 一键必查（场内 6 项 + 跨会话 1 项）
 # 用法：bash scripts/pipeline_check.sh <场次目录> [人名1 人名2 ...]
 # 不传人名时，自动从 01_清洗稿.md 头部映射块提取「## xxx」「🟢/🟣 说话人」以外的实名
+# Safety: bash + python3 stdlib only - no network, no destructive operations; read-only checks plus renderer output inside the given session directory.
 
 set +e   # grep -c 返回 0 时不退出
 DIR="${1:?用法: bash pipeline_check.sh <场次目录> [人名...]}"
@@ -77,7 +78,7 @@ echo
 echo -e "${B}[检查 4] 结构完整性${N}"
 for f in 01_清洗稿.md 02_主题整理 03_方法论清单.md 04_术语表.md \
          05_人物角色卡.md 06_关键数据速查.md 07_议题关联地图.md \
-         08_洞察卡片.md 09_战略诊断与行动清单.md README.md index.html; do
+         08_洞察卡片.md 09_战略诊断与行动清单.md README.md; do
   [ -e "$f" ] && ok "$f" || err "MISSING $f"
 done
 NSEG=$(ls 02_主题整理/ 2>/dev/null | grep -cE '^第[0-9]+段')
@@ -110,13 +111,14 @@ CODEBLOCKS=$(awk '/^```$/{c++; if(c>=2) exit} END{print c}' 07_议题关联地�
 # === 检查 5：HTML 渲染 ===
 echo
 echo -e "${B}[检查 5] HTML 渲染${N}"
-if [ -f index.html ]; then
-  SIZE=$(wc -c < index.html)
-  echo "  index.html: $SIZE bytes"
-  EXTLINK=$(grep -cE 'https?://[^\"'"'"' ]+\.(js|css)' index.html)
+HTML=$(ls *.html 2>/dev/null | head -1)
+if [ -n "$HTML" ] && [ -f "$HTML" ]; then
+  SIZE=$(wc -c < "$HTML")
+  echo "  $HTML: $SIZE bytes"
+  EXTLINK=$(grep -cE 'https?://[^\"'"'"' ]+\.(js|css)' "$HTML")
   [ "$EXTLINK" -eq 0 ] && ok "无外部 CDN 链接" || warn "外部 CDN: $EXTLINK"
 else
-  err "index.html 未生成"
+  err "无 HTML 产物（场次名.html，v2.3.7 前旧场为 index.html）"
 fi
 
 # === 检查 6：跨会话同步（必查补丁）===
@@ -185,7 +187,7 @@ EXEC="$DIR/00_执行摘要.md"
 if [ -f "$EXEC" ]; then
   NC=$(sed 's/[[:space:]]//g; s/[#*|>-]//g' "$EXEC" | wc -m | tr -d ' ')
   if [ "$NC" -ge 200 ] && [ "$NC" -le 1400 ]; then
-    ok "00_执行摘要存在（~${NC} 字；渲染时拆层：局势/决策→①，待办/风险→②折叠）"
+    ok "00_执行摘要存在（~${NC} 字；v2.3.8 渲染：全 BLUF 四节进①摘要卡，可折叠）"
   else
     warn "00_执行摘要 ${NC} 字——①层宜精（局势+决策 200-400 字，待办表/风险另计）"
   fi
@@ -197,9 +199,9 @@ if [ -d "$DIR/02_主题整理" ]; then
   HAV=$(grep -l '^## *段结论' "$DIR"/02_主题整理/第*段_*.md 2>/dev/null | wc -l | tr -d ' ')
   if [ "$TOT" -gt 0 ]; then
     if [ "$TOT" -eq "$HAV" ]; then
-      ok "段结论 ${HAV}/${TOT} 全覆盖（②总结层原料齐）"
+      ok "段结论 ${HAV}/${TOT} 全覆盖（②分段速览优先读 ## 摘要，段结论为回退源）"
     else
-      warn "段结论 ${HAV}/${TOT}——缺段结论的段不会进 ② 全文总结层"
+      warn "段结论 ${HAV}/${TOT}——②分段速览按 ## 摘要→段结论→副标题取材，两者皆缺的段不进行"
     fi
   fi
 fi

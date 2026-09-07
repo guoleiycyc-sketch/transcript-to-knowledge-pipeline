@@ -299,7 +299,7 @@ P1  ……
 # <场次名> · 知识包
 
 ## 怎么看
-打开 `index.html`（双击即开，CSS/JS 全内联，无外部依赖）。
+打开 `<场次名>.html`（双击即开，CSS/JS 全内联，无外部依赖）。
 
 左侧导航 / 全文搜索 / 金句点击复制 / 时间戳跳原文 / 表格排序 / 深浅主题。
 
@@ -335,7 +335,7 @@ P1  ……
 mkdir -p "<场次目录>/02_主题整理"
 
 # 渲染 HTML
-python ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/render_pack.py "<场次目录>"
+python <skill目录>/scripts/render_pack.py "<场次目录>"
 
 # 6 次必查（见 references/05）
 ```

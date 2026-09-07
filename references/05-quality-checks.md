@@ -117,7 +117,7 @@ awk '/^```$/ {c++; if (c>=2) exit}' 07_议题关联地图.md   # 至少有一个
 ## 检查 5：HTML 渲染
 
 ```bash
-python ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/render_pack.py "<场次目录>" 2>&1 | tee /tmp/render.log
+python <skill目录>/scripts/render_pack.py "<场次目录>" 2>&1 | tee /tmp/render.log
 
 # 5.1 生成成功
 [ -f "index.html" ] && echo "OK index.html $(wc -c < index.html) bytes"

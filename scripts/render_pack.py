@@ -6,6 +6,14 @@ Recording Knowledge Pack — 通用渲染 wrapper。
 读一个"场次目录"（按规范放好 01-09 的 md），自动提取配置，一键生成自包含 index.html。
 任何场次零配置：段标题/人物/母题/各类计数全部从 md 自动提取。
 
+版本（仅记渲染器层变更，skill 整体版本见 SKILL.md / CHANGELOG.md）：
+    v2.3.8（2026-09-06）三层阅读 v2：①执行摘要升级为醒目可折叠摘要卡（局势+决策
+      要点+待办表精简+风险行全 BLUF 入卡，卡底「跳过摘要，看全库内容 ↓」锚）；
+      ②总结层改为「分段速览」行卡（各段 ## 摘要 一行一段+「展开该段」下潜）；
+      层间锚点：卡内人名→#people、Owner 列→#people、卡N→#insight-N（圈号①-⑳
+      原生已链接）。无 00_执行摘要 的老场整块三层导航不渲染（与旧版结构一致）。
+    v2.3.7 输出文件名=场次目录名（不再产 index.html）。
+
 用法：
     python render_pack.py <场次目录> [--brand "显示名"]
 
@@ -23,6 +31,8 @@ Recording Knowledge Pack — 通用渲染 wrapper。
       09_战略诊断与行动清单.md   (可选；咨询/诊断类才有)
 
 依赖：同目录 build_html.py（渲染器母版，自带 CSS/JS/通用渲染）。
+
+Safety: Python stdlib only - no network access, no subprocess, no dynamic execution; reads/writes stay within the user's working and output directories.
 """
 import sys
 import re
@@ -333,8 +343,21 @@ def slice_from(md: str, start_pat: str) -> str:
     return md[ms.start():].strip() if ms else ""
 
 
-def seg_conclusions(seg_dir):
-    """各段「## 段结论」的首句：{段号: 首句}。缺段结论的段不进②层。"""
+def _section_body(md: str, header_pat: str) -> str:
+    """取 `## xxx` 节正文（到下一个 1-3 级标题前），剥头注 `>` 行。"""
+    mh = re.search(header_pat, md, re.M)
+    if not mh:
+        return ""
+    rest = md[mh.end():]
+    me = re.search(r"^#{1,3}\s", rest, re.M)
+    body = rest[:me.start()].strip() if me else rest.strip()
+    return "\n".join(ln for ln in body.split("\n") if not ln.strip().startswith(">")).strip()
+
+
+def seg_digest_rows(seg_dir, seg_meta):
+    """② 分段速览原料：{段号: 摘要句}（v2.3.8，替代 v2.3 的段结论首句）。
+    优先级：`## 摘要`（作者手写，句边界截 ~110 字）→ `## 段结论` 首句 → 段副标题。
+    三者全缺的段不进行——不做无中生有的机器概括。"""
     out = {}
     if not seg_dir.exists():
         return out
@@ -342,49 +365,138 @@ def seg_conclusions(seg_dir):
         m = re.search(r"第(\d+)段", f.name)
         if not m:
             continue
+        i = int(m.group(1))
         md = f.read_text(encoding="utf-8")
-        mh = re.search(r"^##\s*段结论\s*\n", md, re.M)
-        if not mh:
-            continue
-        rest = md[mh.end():]
-        me = re.search(r"^#{1,3}\s", rest, re.M)
-        body = rest[:me.start()].strip() if me else rest.strip()
-        if body:
-            out[int(m.group(1))] = first_sentence(body, limit=60)
+        s = re.sub(r"\s+", " ", _section_body(md, r"^##\s*摘要\s*$"))
+        if not s:
+            s = re.sub(r"\s+", " ", _section_body(md, r"^##\s*段结论\s*$"))
+        if s:
+            out[i] = first_sentence(s, limit=100)
+        elif seg_meta.get(i, ("", ""))[1]:
+            out[i] = seg_meta[i][1]
     return out
 
 
-def render_brief(exec_md):
-    """① 简报层：00_执行摘要的「局势+本场决策」两节拆层渲染（10 秒层）。
-    待办/风险归②层——写作侧零改动（00 仍按 BLUF 四节写），阅读侧三层化。"""
-    head = slice_between(exec_md, r"^\*\*局势\*\*", r"^\*\*待办\*\*")
-    if not head:
-        head = slice_between(exec_md, r"^\*\*局势\*\*", r"^\*\*风险")
-    out = ['<h2 class="seg-title">① 执行摘要</h2>',
-           '<p class="seg-subtitle">10 秒层 · 看完这层够了就停，不够再下潜</p>']
-    if head:
-        out.append('<div class="card">' + render_md_with_code(head) + '</div>')
-    else:
-        out.append(render_md_with_code(strip_h1(exec_md)))
-    out.append('<p class="brief-fallback">待办与风险见 '
-               '<a class="dive-link" href="#digest">② 全文总结</a>；完整模块见左侧导航。</p>')
+def _link_md_refs(md: str, names, insight_nums) -> str:
+    """① 摘要卡专用：把卡内的人名 / 洞察卡引用变成 ③ 层下潜链接（md 级改写，
+    渲染走 inline_fmt 的 [文本](#锚点) 通道）。已有手写链接段不动；只换名字不改字。
+    - 人名（05 卡名，长名优先防子串误伤）→ #people
+    - 卡N（本场确有的洞察卡号）→ #insight-N
+    - 圈号①-⑳ inline_fmt 原生已是 #segN 链接，无需处理。"""
+    if not md:
+        return md
+    # 按已有 md 链接切段，链接文本不重复包
+    parts = re.split(r"(\[[^\]]*\]\([^)]*\))", md)
+    names_desc = sorted((n for n in names if len(n) >= 2), key=len, reverse=True)
+    for k, part in enumerate(parts):
+        if part.startswith("[") and part.rstrip().endswith(")"):
+            continue  # 已是 md 链接段，不重复包
+        s = part
+        for nm in names_desc:
+            if nm in s:
+                s = s.replace(nm, f"[{nm}](#people)")
+        def _card(m):
+            return f"[卡{m.group(1)}](#insight-{m.group(1)})" if m.group(1) in insight_nums else m.group(0)
+        s = re.sub(r"(?<![\w卡])卡\s*(\d+)(?!\d)", _card, s)
+        parts[k] = s
+    return "".join(parts)
+
+
+def _link_owner_cells(md: str) -> str:
+    """待办表 Owner 列整格下潜 #people（v2.3.8）。整格可点——覆盖「C/A」
+    「部落」等昵称/多人格写法，不依赖 05 卡名精确匹配。"""
+    if not md or "|" not in md:
+        return md
+    lines = md.split("\n")
+    hdr_i = next((k for k, ln in enumerate(lines)
+                  if ln.lstrip().startswith("|") and re.search(r"Owner|负责|责任", ln)), None)
+    if hdr_i is None:
+        return md
+    hdr_cells = [c.strip() for c in lines[hdr_i].strip().strip("|").split("|")]
+    col = next((k for k, c in enumerate(hdr_cells) if re.search(r"Owner|负责|责任", c)), None)
+    if col is None:
+        return md
+    for k in range(hdr_i + 1, len(lines)):
+        ln = lines[k]
+        if not ln.lstrip().startswith("|") or re.match(r"^\|[\s:|-]+\|\s*$", ln):
+            continue
+        cells = ln.strip().strip("|").split("|")
+        if col < len(cells) and cells[col].strip() and "[" not in cells[col]:
+            cells[col] = f" [{cells[col].strip()}](#people) "
+            lines[k] = "|" + "|".join(cells) + "|"
+    return "\n".join(lines)
+
+
+def render_brief(exec_md, people_names, insight_nums, library_anchor="#people", has_digest=True):
+    """① 简报层 v2.3.8：00_执行摘要全 BLUF 四节收进一张醒目可折叠摘要卡
+    （details 默认展开）：局势 → 本场决策要点 → 待办表精简（Owner 可点下潜人物卡）
+    → 风险行；卡底「跳过摘要，看全库内容 ↓」锚到③层首模块。写作侧零改动
+    （00 仍按 BLUF 四节写），阅读侧三层化。"""
+    situation = (slice_between(exec_md, r"^\*\*局势\*\*", r"^\*\*本场决策")
+                 or slice_between(exec_md, r"^\*\*局势\*\*", r"^\*\*待办\*\*")
+                 or slice_between(exec_md, r"^\*\*局势\*\*", r"^\*\*风险"))
+    decisions = slice_between(exec_md, r"^\*\*本场决策", r"^\*\*待办\*\*")
+    tail = slice_from(exec_md, r"^\*\*待办\*\*")
+    todo_md, risk_md = "", ""
+    if tail:
+        m = re.search(r"^\*\*风险", tail, re.M)
+        if m:
+            todo_md, risk_md = tail[:m.start()].strip(), tail[m.start():].strip()
+        else:
+            todo_md = tail.strip()
+    out = ['<details class="brief-card" open>',
+           '<summary class="brief-card-sum"><span class="bc-num">①</span>'
+           '<span class="bc-title">执行摘要</span>'
+           '<span class="bc-hint">局势 · 决策 · 待办 · 风险 —— 读完这张卡就够，不够再下潜</span></summary>',
+           '<div class="brief-card-body">']
+    if situation:
+        out.append('<div class="bc-sec">'
+                   + render_md_with_code(_link_md_refs(situation, people_names, insight_nums))
+                   + '</div>')
+    elif not decisions and not todo_md:
+        # 非 BLUF 形态的 00（极少）：整文渲染兜底
+        out.append('<div class="bc-sec">' + render_md_with_code(strip_h1(exec_md)) + '</div>')
+    if decisions:
+        out.append('<div class="bc-sec">'
+                   + render_md_with_code(_link_md_refs(decisions, people_names, insight_nums))
+                   + '</div>')
+    if todo_md:
+        # 待办表精简：紧凑表格（CSS 压字号/行距），Owner 列可点，表头仍可排序
+        out.append('<div class="bc-sec bc-todo">'
+                   + render_md_with_code(_link_owner_cells(todo_md), sortable=True) + '</div>')
+    if risk_md:
+        out.append('<div class="bc-sec bc-risk">'
+                   + render_md_with_code(_link_md_refs(risk_md, people_names, insight_nums))
+                   + '</div>')
+    digest_link = ('<span class="bf-sep">·</span>'
+                   '<a class="dive-link" href="#digest">② 分段速览（各段一行）</a>') if has_digest else ""
+    out.append(f'<div class="brief-foot">'
+               f'<a class="dive-link bf-skip" href="{library_anchor}">跳过摘要，看全库内容 ↓</a>'
+               f'{digest_link}</div>')
+    out.append('</div></details>')
     return "\n".join(out)
 
 
-def render_digest(exec_md, concl, seg_meta, insights_md, mother, has_strategy, people=None):
-    """② 总结层（≤1000 字规格）：各段结论首句 + 核心洞察卡链接 + 待办/风险表，
-    每个条目带锚点下潜③层——摘要层忠实性问题（漏关键信息）的解药是可抽查。
-    v2.3.1：②层存在时收编 overview 职能（母题/人物索引），每个信息只出现在一层。"""
-    out = ['<h2 class="seg-title">② 全文总结</h2>',
-           '<p class="seg-subtitle">各段要点 + 核心洞察 · 点击任意条目下潜详情</p>']
+def render_digest(rows, seg_meta, insights_md, mother, has_strategy):
+    """② 总结层 v2.3.8「分段速览」：每段一行卡（段号+标题+## 摘要+「展开该段」），
+    全部条目锚点下潜③层对应段；母题/洞察卡胶囊/战略诊断链接保留——
+    摘要层忠实性问题（漏关键信息）的解药是可抽查。
+    v2.3.1：②层存在时收编 overview 职能（母题索引），每个信息只出现在一层。
+    v2.3.8：待办/风险表移入①摘要卡（每信息只出现在一层）。"""
+    out = ['<h2 class="seg-title">② 分段速览</h2>',
+           '<p class="seg-subtitle">各段摘要一行一段 · 点击任意条目展开该段 · 3 分钟读完</p>']
     if mother:
         out.append(f'<div class="card"><h3>母题</h3><p>{B.inline_fmt(mother)}</p></div>')
-    if concl:
-        out.append('<div class="card"><h3>各段要点</h3><ol class="digest-list">')
-        for i in sorted(concl):
+    if rows:
+        out.append('<div class="card"><ol class="seg-quick">')
+        for i in sorted(rows):
             title = seg_meta.get(i, (f"第{i}段", ""))[0]
-            out.append(f'<li><a class="dive-link dl-title" href="#seg{i}">{B.esc(title)}</a>'
-                       f'<br>{B.inline_fmt(concl[i])}</li>')
+            out.append(
+                f'<li class="sq-row">'
+                f'<a class="sq-num" href="#seg{i}" aria-label="第{i}段">{i}</a>'
+                f'<div class="sq-body"><a class="sq-title" href="#seg{i}">{B.inline_fmt(title)}</a>'
+                f'<p class="sq-sum">{B.inline_fmt(rows[i])}</p></div>'
+                f'<a class="sq-open" href="#seg{i}">展开该段 ↓</a></li>')
         out.append('</ol></div>')
     cards = re.findall(r"^##\s+卡\s*(\d+)\s*[·•]?\s*(.+)$", insights_md, re.M) if insights_md else []
     if cards:
@@ -392,11 +504,6 @@ def render_digest(exec_md, concl, seg_meta, insights_md, mother, has_strategy, p
         for num, name in cards:
             out.append(f'<a class="dive-link" href="#insight-{num}">卡{num} · {B.esc(name.strip())}</a>')
         out.append('</div></div>')
-    todo = slice_from(exec_md, r"^\*\*待办\*\*") if exec_md else ""
-    if todo:
-        # 默认折叠：待办表是「查证」不是「阅读」（不计入②层阅读量）
-        out.append('<details class="raw-details"><summary>待办与风险（Owner / 期限，表头可排序）</summary>'
-                   '<div class="raw-body">' + render_md_with_code(todo, sortable=True) + '</div></details>')
     if has_strategy:
         out.append('<div class="card"><p>战略诊断与行动清单：'
                    '<a class="dive-link" href="#strategy">下潜 →</a></p></div>')
@@ -404,11 +511,11 @@ def render_digest(exec_md, concl, seg_meta, insights_md, mother, has_strategy, p
 
 
 READ_PROTOCOL = (
-    '<div class="read-protocol"><b>三层阅读协议</b>'
-    '<span>① <a class="dive-link" href="#brief">执行摘要</a>（10 秒，够用即走）</span>'
-    '<span>② <a class="dive-link" href="#digest">全文总结</a>（3 分钟，条目可下潜）</span>'
-    '<span>③ 完整模块（左侧导航，按需查证）</span>'
-    '<span style="color:var(--muted)">看完①就够请直接关闭——本页为按需下潜设计</span></div>'
+    '<div class="read-protocol"><b>三层阅读</b>'
+    '<span class="rp-tip">按需下潜：读完摘要即可走，有意思再往下点——省的是你的大脑</span>'
+    '<span>① <a class="dive-link" href="#brief">执行摘要</a>（10 秒，一张卡）</span>'
+    '<span>② <a class="dive-link" href="#digest">分段速览</a>（3 分钟，条目可下潜）</span>'
+    '<span>③ 完整模块（左侧导航，按需查证）</span></div>'
 )
 
 
@@ -578,7 +685,7 @@ def build_sidebar(brand, seg_meta, counts, has_strategy, has_brief=False, has_di
     if show_overview:
         nav.append('<a href="#overview">总览</a>')
     if has_digest:
-        nav.append('<a href="#digest">② 全文总结</a>')
+        nav.append('<a href="#digest">② 分段速览</a>')
     nav += [f'<a href="#people">人物角色卡（{counts["people"]} 人）</a>',
             '<a href="#map">议题关联地图</a>',
             f'<a href="#insights">洞察卡片（{counts["insights"]} 张）</a>',
@@ -628,11 +735,12 @@ def main():
     mother = extract_mother(rd("07_议题关联地图.md"))
     has_strategy = (pack_dir / "09_战略诊断与行动清单.md").exists()
     insights_md = rd("08_洞察卡片.md")
-    # v2.3 三层阅读结构：①简报（00_执行摘要前半）②总结（机器编译）
+    # v2.3.8 三层阅读 v2：①摘要卡（00_执行摘要全 BLUF）②分段速览（各段 ## 摘要）
     exec_md = rd("00_执行摘要.md")
     has_brief = bool(exec_md)
-    concl = seg_conclusions(seg_dir)
-    has_digest = has_brief and bool(concl or mother)
+    rows = seg_digest_rows(seg_dir, seg_meta)
+    has_digest = has_brief and bool(rows or mother)
+    insight_nums = set(re.findall(r"^##\s+卡\s*(\d+)", insights_md, re.M))
     counts = {
         "people": len(people),
         "insights": count_heading(rd("08_洞察卡片.md"), r"^##\s+卡\s*\d+"),
@@ -659,14 +767,23 @@ def main():
     # 分段目录被②层各段要点取代（超集），导航卡被顶部协议横幅取代；
     # 定制总览（00_总览.md）与无②层的老场不受影响）
     show_overview = bool(overview_md) or not has_digest
+    # 「跳过摘要，看全库内容 ↓」锚到③层首个实际渲染模块（定制总览优先）
+    lib_first = "overview" if show_overview else next(
+        (sid for sid, has in (("people", people_md), ("map", rd("07_议题关联地图.md")),
+                              ("insights", insights_md), ("method", rd("03_方法论清单.md")),
+                              ("strategy", has_strategy), ("glossary", rd("04_术语表.md")),
+                              ("data", rd("06_关键数据速查.md"))) if has), "seg1")
+    library_anchor = f"#{lib_first}"
     sections = []
     if has_brief:
-        sections.append('    <section id="brief">\n' + render_brief(exec_md) + '\n    </section>')
+        sections.append('    <section id="brief">\n'
+                        + render_brief(exec_md, [p["name"] for p in people], insight_nums,
+                                       library_anchor, has_digest) + '\n    </section>')
     if show_overview:
         sections.append('    <section id="overview">\n' + B.render_overview() + '\n    </section>')
     if has_digest:
         sections.append('    <section id="digest">\n'
-                        + render_digest(exec_md, concl, seg_meta, insights_md, mother, has_strategy)
+                        + render_digest(rows, seg_meta, insights_md, mother, has_strategy)
                         + '\n    </section>')
     if people_md:
         sections.append('    <section id="people">\n' + B.render_people(people_md) + '\n    </section>')
@@ -709,7 +826,8 @@ def main():
     html_out = html_out.replace("14 张可复用的思维工具卡 · 定义 + 出处 + 怎么用",
                                 "方法论卡 · 定义 + 出处 + 怎么用")
 
-    out_path = pack_dir / "index.html"
+    # v2.3.7 起输出文件名=场次目录名（用户 2026-09-06 要求：index.html 无辨识度，浏览器标签/搜索分不清场次）
+    out_path = pack_dir / f"{pack_dir.name}.html"
     out_path.write_text(html_out, encoding="utf-8")
     print(f"✓ 已生成 {out_path}（{out_path.stat().st_size / 1024:.1f} KB）")
     print(f"  段:{len(seg_meta)} 人:{counts['people']} 洞察:{counts['insights']} "
@@ -757,14 +875,16 @@ def main():
         print(f"✓ 锚点全部有效（下潜链接 {n_links} 处）")
     m_dg = re.search(r'<section id="digest">(.*?)</section>', html_out, re.S)
     if m_dg:
-        # 阅读量统计：剥离折叠 details 与卡胶囊链接区（点选≠阅读）
-        core = re.sub(r"<details.*?</details>|<div class=\"digest-insights\">.*?</div>", "", m_dg.group(1), flags=re.S)
+        # 阅读量统计：剥卡胶囊与「展开该段」控件（点选≠阅读）
+        core = re.sub(r'<a class="sq-open"[^>]*>.*?</a>'
+                      r"|<div class=\"digest-insights\">.*?</div>", "", m_dg.group(1), flags=re.S)
         t = re.sub(r"<[^>]+>", "", core)
         n_chars = len(re.sub(r"\s", "", t))
-        # 阈值随段数弹性：常规 6-10 段压 ~1000 字内；16 段重装场每段 ~95 字预算
-        limit = max(1200, len(concl) * 95)
+        # 阈值随段数弹性：常规 6-10 段压 ~1000 字内；重装场每行 ~130 字预算
+        # （v2.3.8 行=段号+段标题+## 摘要句(≤100)，较 v2.3 段结论首句(~60)宽）
+        limit = max(1200, len(rows) * 130)
         flag = "⚠ 超字数规格" if n_chars > limit else "✓"
-        print(f"{flag} ② 总结层阅读量 {n_chars} 字（限额 {limit}，各段要点 {len(concl)} 条；折叠待办/卡胶囊不计）")
+        print(f"{flag} ② 分段速览阅读量 {n_chars} 字（限额 {limit}，速览行 {len(rows)} 条；控件/卡胶囊不计）")
     if not has_brief and seg_dir.exists():
         print("⚠ 缺 00_执行摘要.md——①简报层不成立（v2.3 起标准/重装档必写）")
 

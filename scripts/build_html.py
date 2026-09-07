@@ -4,6 +4,8 @@
 把《聊聊AI工业应用》项目的全部 md 文件组装成自包含交互网页 index.html。
 飞书风（浅色 + 蓝色 #3370ff + 圆角卡片）+ 深色主题切换 + 左侧固定侧栏 + 原生 JS 交互。
 零外部依赖，双击即开。
+
+Safety: Python stdlib only - no network access, no subprocess, no dynamic execution; reads/writes stay within the user's working and output directories.
 """
 import os
 import re
@@ -984,7 +986,7 @@ mark.srch{background:#ffe58f;color:inherit;padding:0 2px;border-radius:2px}
 [data-theme="dark"] mark.srch{background:#806b1f;color:#fff}
 mark.srch.cur{background:#ff9c30;color:#fff}
 [data-theme="dark"] mark.srch.cur{background:#ff9c30;color:#1f2329}
-mark.jumpto{background:#ff9c30;color:#fff;animation:flash 2.4s ease-out}
+mark.jumpto{background:#ff9c30;color:#fff;animation:轻量模型2.4s ease-out}
 
 /* 标题 */
 h2.seg-title{
@@ -1163,12 +1165,12 @@ details.raw-details .raw-body{padding:14px 18px}
   transition:background .15s,box-shadow .15s;
 }
 .line:hover{background:var(--bg)}
-.line.flash{
+.line.轻量模型{
   background:#fff3a0;box-shadow:0 0 0 3px #ffe58f;
-  animation:flash 2.4s ease-out;
+  animation:轻量模型2.4s ease-out;
 }
-[data-theme="dark"] .line.flash{background:#5a4e1a;box-shadow:0 0 0 3px #806b1f}
-@keyframes flash{0%{background:#ffe58f}100%{background:transparent}}
+[data-theme="dark"] .line.轻量模型{background:#5a4e1a;box-shadow:0 0 0 3px #806b1f}
+@keyframes轻量模型{0%{background:#ffe58f}100%{background:transparent}}
 .line .sp{
   display:inline-block;font-weight:700;font-size:12px;
   padding:1px 8px;border-radius:4px;margin-right:6px;vertical-align:middle;
@@ -1337,7 +1339,70 @@ pre.ascii-map{
   border:1px solid var(--border);background:var(--surface);
 }
 .digest-insights a:hover{border-color:var(--accent);color:var(--accent);text-decoration:none}
-.brief-fallback{font-size:13px;color:var(--muted);margin:6px 0}
+
+/* v2.3.8 三层阅读 v2：①执行摘要卡（醒目可折叠，全 BLUF）+ ②分段速览行卡 */
+.brief-card{
+  border:1px solid color-mix(in srgb,var(--accent) 35%,var(--border));
+  border-left:5px solid var(--accent);
+  border-radius:var(--radius-lg);
+  background:linear-gradient(180deg,var(--accent-soft),var(--surface) 170px);
+  box-shadow:var(--shadow);
+}
+.brief-card>summary{
+  display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+  padding:14px 18px;cursor:pointer;list-style:none;user-select:none;
+}
+.brief-card>summary::-webkit-details-marker{display:none}
+.brief-card>summary::before{
+  content:"▶ ";font-size:10px;margin-right:2px;display:inline-block;
+  transition:transform .15s;color:var(--accent);
+}
+.brief-card[open]>summary::before{transform:rotate(90deg)}
+.brief-card .bc-num{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:24px;height:24px;border-radius:50%;flex-shrink:0;
+  background:var(--accent);color:#fff;font-size:13px;font-weight:700;
+  transform:translateY(3px);
+}
+.brief-card .bc-title{font-size:18px;font-weight:700;color:var(--accent-strong)}
+.brief-card .bc-hint{font-size:12px;color:var(--muted)}
+.brief-card-body{padding:2px 18px 14px}
+.brief-card-body .bc-sec{margin:10px 0}
+.brief-card-body .bc-sec>p:first-child{margin-top:0}
+.brief-card-body table{font-size:12.5px;margin:8px 0}  /* 待办表精简 */
+.brief-card-body th,.brief-card-body td{padding:6px 10px}
+.brief-card-body .bc-risk>p{font-size:13px}
+.brief-foot{
+  display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+  padding:10px 2px 2px;margin-top:10px;border-top:1px dashed var(--border);
+  font-size:13px;
+}
+.brief-foot .bf-skip{font-weight:600}
+.brief-foot .bf-sep{color:var(--muted)}
+.seg-quick{list-style:none;padding:0;margin:0}
+.sq-row{
+  display:flex;gap:12px;align-items:flex-start;
+  padding:10px 2px;border-bottom:1px dashed var(--border);
+}
+.sq-row:last-child{border-bottom:none}
+.sq-num{
+  flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;
+  width:26px;height:26px;border-radius:50%;margin-top:2px;
+  background:var(--accent);color:#fff;font-size:13px;font-weight:700;
+  text-decoration:none;
+}
+.sq-num:hover{opacity:.85;text-decoration:none}
+.sq-body{flex:1;min-width:0}
+.sq-title{font-weight:600;font-size:14px;color:var(--text);text-decoration:none;line-height:1.5}
+.sq-title:hover{color:var(--accent)}
+.sq-sum{margin:2px 0 0;font-size:13px;color:var(--muted);line-height:1.65}
+.sq-open{
+  flex-shrink:0;margin-top:2px;white-space:nowrap;
+  font-size:12px;color:var(--accent);text-decoration:none;
+  border:1px solid var(--border);border-radius:14px;padding:3px 10px;
+}
+.sq-open:hover{border-color:var(--accent)}
+@media print{.sq-row{break-inside:avoid;page-break-inside:avoid}}
 
 /* v2.3.3 图形化地图：层带 / 节点流 / 线路箭头 / 终端风回退 */
 .arrow{color:var(--accent);font-weight:700;padding:0 1px}
@@ -1612,13 +1677,13 @@ pre.ascii-map::before{
       if(!target) return;
       target.scrollIntoView({behavior:'smooth',block:'center'});
       // 临时高亮
-      target.classList.add('flash');
+      target.classList.add('轻量模型');
       // 上滚一点给 sticky topbar 留空
       setTimeout(()=>{
         const y=target.getBoundingClientRect().top+window.scrollY-80;
         window.scrollTo({top:y,behavior:'smooth'});
       },80);
-      setTimeout(()=>target.classList.remove('flash'),2600);
+      setTimeout(()=>target.classList.remove('轻量模型'),2600);
     });
   });
   // 原文节选里的时间戳也支持点击
@@ -1627,8 +1692,8 @@ pre.ascii-map::before{
     s.addEventListener('click',e=>{
       const line=e.target.closest('.line');
       if(!line) return;
-      line.classList.add('flash');
-      setTimeout(()=>line.classList.remove('flash'),2600);
+      line.classList.add('轻量模型');
+      setTimeout(()=>line.classList.remove('轻量模型'),2600);
     });
   });
 })();

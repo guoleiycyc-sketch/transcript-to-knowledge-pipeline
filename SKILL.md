@@ -1,7 +1,9 @@
 ---
 name: transcript-to-knowledge-pipeline
-description: "把一份对话类录音转写稿（飞书妙记/得到大脑/Tencent Meeting/Whisper/手工整理稿），经过严格的说话人映射和清洗，产出 9 模块结构化知识包 + 自包含可搜索深浅主题 HTML 的完整工程化管线。本 skill 是**自包含**的工程化管线（已内联 HTML 渲染器与格式模板，无外部 skill 依赖）——把管线执行过程中的全部陷阱（说话人误判、ASR 错字、格式 bug、字段遗漏、HTML 渲染失败）显式化为 6 次发布前必查和持续累积的 pitfalls 库。一旦用户要把转写稿整理成知识包/网页文档/可搜索页面，并希望过程严格、有检查清单、可复用，立刻触发本 skill。"
-version: 2.3.6
+description: "当用户要把对话录音的转写稿（飞书妙记/腾讯会议/得到大脑/Whisper/手工稿）加工成结构化成果时使用：说话人映射、ASR 错字订正对照表、9 模块知识包、双击即开可全文搜索、金句跳时间戳的 HTML。以下意图一律触发：把转写稿/录音清洗、整理成知识包、可搜索网页或 HTML 文档；新录音到了，按「老规矩/标准管线出全套」「复现上次那条管线」；一批存量旧录音批量清洗；委派模式（轻量模型出清洗稿、主对话做映射与质检）。仅快速回顾一场录音、检索往期录音里的观点原话、把已有的 01 清洗稿改写成会议纪要、出评估分析报告的，不用本 skill。"
+description_zh: "对话录音转写稿清洗：说话人映射+逐回合还原，产出 9 模块知识包与可搜索 HTML"
+description_en: "Clean dialogue transcripts into a 9-module knowledge pack + searchable HTML"
+version: 2.4.3
 ---
 
 # Transcript → Knowledge Pipeline
@@ -12,7 +14,7 @@ version: 2.3.6
 
 | Skill | 关系 |
 |---|---|
-| `recording-knowledge-pack`（原蓝本） | **已内联**：其 HTML 渲染器（`scripts/build_html.py` + `render_pack.py`）与格式模板（`references/format-templates.md`、`build-html-guide.md`）已复制进本 skill，**单 skill 独立运行，无需额外安装**。 |
+| `recording-knowledge-pack`（原蓝本） | **已内联且已退役**：其 HTML 渲染器与格式模板早已复制进本 skill，单 skill 独立运行；原 skill 已于 2026-09-07 从技能目录卸载封存（`~/.claude/skills-disabled/`），消除同域双 skill 触发竞争。 |
 | `echo-weave` | **互补**：echo-weave 按场景选模式（纪要/访谈/故事/…）；本 skill 是固定管线的工程执行。echo-weave 的洞察卡片方法被本 skill 第 3 阶段引用。 |
 | `huawei-nas` / `lark-minutes` / `agent-reach` | **上游源**：从 NAS / 飞书妙记 / 互联网抓取转写稿后，再走本 skill。 |
 
@@ -26,10 +28,11 @@ version: 2.3.6
 
 ## 全流程（5 阶段 + 6 检查 + 1 一键脚本）
 
-> **v2.3 三层阅读结构**（B 规格，详见 references/03 §9）：①简报 10 秒 → ②总结带下潜链接（机器编译，禁手写）→ ③完整模块。评价标准 = 可预期性 × 阅读成本。
+> **v2.3 三层阅读结构**（B 规格，详见 references/03 §9）：①摘要卡 10 秒 → ②分段速览带下潜链接（机器编译自各段 ## 摘要，禁手写）→ ③完整模块。评价标准 = 可预期性 × 阅读成本。
 
 ```
 ① Intake + 说话人映射  ←—— 最高风险阶段（含「账号名≠本人」第三种陷阱）
+      ↓（委派模式：映射后由轻量模型生产 01，见 references/10；主对话保留映射/质检/模块提炼）
       ↓
 ② 清洗（01_清洗稿）    ←—— 双源字段必写，必经两次：标签脏数据检测 + 修复
       ↓
@@ -51,12 +54,12 @@ version: 2.3.6
 | 阶段 | 参考 |
 |---|---|
 | ① Intake + 说话人映射 | `references/01-intake-speaker-mapping.md`（含账号名陷阱） |
-| ② 清洗 + ASR（含双源字段） | `references/02-cleansing-asr.md` |
+| ② 清洗 + ASR（含双源字段） | `references/02-cleansing-asr.md`；**委派模式**（项目 config 启用时）→ `references/10-delegation-protocol.md` |
 | ③ 9 模块 | `references/03-nine-modules.md` |
 | ④ HTML | `references/04-html-assembly.md` |
 | ⑤ 跨场呼应 + README | `references/05-quality-checks.md`、`references/07-templates.md` |
 | **跨会话同步**（订正后/场次完成后） | **`references/08-cross-session-sync.md`** |
-| **批量清洗**（几十场存量，flash 子代理流水线） | `references/09-batch-cleansing.md` |
+| **批量清洗**（几十场存量，轻量模型子代理流水线） | `references/09-batch-cleansing.md` |
 | Pitfalls 库 | `references/06-pitfalls.md` |
 
 **脚本**：`scripts/pipeline_check.sh <场次目录> [人名...]` —— 一键跑场内 6 项 + 跨会话 1 项（人名自动从 01 头部映射提取）。
@@ -84,7 +87,7 @@ grep -cE '^\*\*【[^】]*\*\* \[' <场次目录>/01_清洗稿.md   # 应 = 0
 **绝不能凭某人在原文中被称呼的方式判定其 ASR 标签**。本次（2026-08-09 场）的反面教训：
 
 > 说话人3 被A / B 当面叫"D" → 我两次判"说话人3 = D"
-> 实际：说话人3 = C（主导商业规划的核心合伙人）
+> 实际：说话人3 = C（主导商业规划、做视频号、润商会合伙人、公司年营收一亿）
 > D是另一人，发言不多，未被 ASR 单独识别
 
 详细方法论见 `references/01`——**角色指纹 + 时间线核对 + 用户二次确认**。
@@ -94,7 +97,7 @@ grep -cE '^\*\*【[^】]*\*\* \[' <场次目录>/01_清洗稿.md   # 应 = 0
 ```
 <项目根>/
   <场次名>_YYYY-MM-DD/
-    ├── 00_执行摘要.md             ← BLUF 四段式；v2.3 渲染拆层：局势/决策→①简报层（10秒），待办/风险→②总结层折叠
+    ├── 00_执行摘要.md             ← BLUF 四段式；v2.3.8 渲染：全四节进①可折叠摘要卡（Owner/卡N/圈号自动下潜），无 00 老场三层导航整块不渲染
     ├── 01_清洗稿.md
     ├── 02_主题整理/               ← 只做描述性编码；金句字段=引用制【v2】
     ├── 03_方法论清单.md           ← 只收"遇 X→执行 Y"型+本场新增；禁反方【v2】
@@ -105,7 +108,7 @@ grep -cE '^\*\*【[^】]*\*\* \[' <场次目录>/01_清洗稿.md   # 应 = 0
     ├── 08_洞察卡片.md             ← 每张 ## 卡 N · 标题 + 核心/证据/启示/反方（必有反方、禁操作步骤）【v2】
     ├── 09_行动清单.md             ← 凡有待办即出；开头=上期行动回顾；行动带状态列【v2】
     ├── README.md
-    └── index.html                 ← render_pack.py 一键生成
+    └── <场次名>.html              ← render_pack.py 一键生成（v2.3.7：文件名=场次目录名，勿再产 index.html）
   _全局资产/                        ← 跨场累积层：引语库/方法论总库/干系人档案/决策日志/母题总图/词表【v2 新增】
 ```
 
@@ -160,10 +163,10 @@ mkdir -p "<项目根>/<场次名>_YYYY-MM-DD/02_主题整理"
 # 2. 写 01_清洗稿（分块 Write/Edit，详见 references/02）
 # 3. 写 02-09 模块（详见 references/03 + 07）
 # 4. 渲染 HTML
-python ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/render_pack.py <场次目录>
+python <skill目录>/scripts/render_pack.py <场次目录>
 
 # 5. 发布前必查（场内 6 项 + 跨会话 1 项）—— 一键：
-bash ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/pipeline_check.sh <场次目录>
+bash <skill目录>/scripts/pipeline_check.sh <场次目录>
 #    末尾「收尾三问」强制过一遍：新坑入 06-pitfalls（当天写，勿拖）/
 #    渲染自检 ✓ / 增量同步（atoms+索引+README 链表）
 
@@ -176,7 +179,8 @@ bash ~/.claude/skills/transcript-to-knowledge-pipeline/scripts/pipeline_check.sh
 # 8. 全局层维护（v2，每场完成后）：
 #    - 抽取原子：python3 scripts/extract_atoms.py <录音项目根>
 #      （v2.1 起递归扫描全项目树，嵌套场次目录如 E合作/02_沟通与会议/、
-#       _成果目录/ 自动发现，无需再显式传场次路径——旧版单层扫描曾两次漏抽）
+#       _成果目录/ 自动发现，无需再显式传场次路径——旧版单层扫描曾两次漏抽；
+#       v2.3.9 起同 id 内容冲突会打印告警而非静默吞没，见告警即查 P30/P32）
 #    - 生成视图：python3 scripts/render_views.py <录音项目根> --view methods|quotes|share
 #      share = 脱敏分享版 HTML（过滤价格/健康级引语，可直接发团队/客户）
 
