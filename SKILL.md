@@ -7,7 +7,7 @@ description_zh: "对话录音转写稿清洗：说话人映射+逐回合还原�
 description_en: "Clean dialogue transcripts into a 9-module knowledge pack + searchable HTML"
 category: "Productivity"
 author: "Guo Lei"
-version: 3.1.1
+version: 3.1.2
 ---
 
 # Transcript → Knowledge Pipeline
