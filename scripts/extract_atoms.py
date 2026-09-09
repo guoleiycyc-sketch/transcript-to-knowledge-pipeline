@@ -27,8 +27,13 @@ def sens_level(text):
     if SENS_PAT.search(text): return 'P'
     return 'N'
 
-# 递归扫描时跳过的目录：镜像仓会重复抽取、来源层只有原始转写
-SKIP_DIRS = {'.git', '_知识库', '录音来源', '_工具与个人', '__pycache__', 'node_modules'}
+# 递归扫描时跳过的目录：默认通用集；项目专属目录（来源层/镜像仓等）在
+# <项目根>/pipeline.config.json 的 skip_dirs 数组里追加——skill 脚本不硬编码个人结构
+try:
+    _CFG = json.load(open(os.path.join(ROOT, 'pipeline.config.json'), encoding='utf-8'))
+except Exception:
+    _CFG = {}
+SKIP_DIRS = {'.git', '__pycache__', 'node_modules', '.claude'} | set(_CFG.get('skip_dirs', []))
 
 def sessions():
     out = find_session_dirs(ROOT)
@@ -114,7 +119,8 @@ def extract():
     return atoms
 
 def main():
-    out_path = os.path.join(ROOT, '_全局资产', 'atoms.jsonl')
+    _rel = _CFG.get('paths', {}).get('atoms', '_全局资产/atoms.jsonl')
+    out_path = os.path.join(ROOT, _rel)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     existing = {}
     if os.path.exists(out_path):

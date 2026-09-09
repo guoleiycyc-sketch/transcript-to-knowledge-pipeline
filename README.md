@@ -33,7 +33,3 @@ git clone https://github.com/guoleiycyc-sketch/transcript-to-knowledge-pipeline.
 ```
 
 > 前置：Claude Code + python3（3.6+，无需 pip install）。装完重启 Claude Code。WorkBuddy 用户可从技能市场安装（装到 `~/.workbuddy/skills/`）。命令中的 `<skill目录>` 指本 skill 安装位置，Skill 调用时基目录会自动给出。用法与产物结构见 [`INSTALL.md`](./INSTALL.md)，变更史见 [`CHANGELOG.md`](./CHANGELOG.md)。
-
-## 致谢
-
-HTML 渲染器与产物结构源自 `recording-knowledge-pack` 蓝本，已内联至本 skill。

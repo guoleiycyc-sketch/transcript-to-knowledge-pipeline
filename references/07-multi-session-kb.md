@@ -67,6 +67,8 @@ python3 <skill目录>/scripts/init_project.py <项目根> [--delegation]
 
 幂等（已存在跳过不覆盖）。本表其余落点若与项目实际结构不同，以项目 CLAUDE.md 的约定为准。
 
+**pipeline.config.json 的通用键**（extract_atoms / render_views / pipeline_check 均读取，已有项目可按需补）：`paths.atoms`（原子库位置，默认 `_全局资产/atoms.jsonl`）、`paths.views_dir`（视图目录，默认 `_全局资产`）、`skip_dirs`（递归扫描跳过的项目目录，追加在通用默认集上）、`old_names`（身份订正过的旧名数组——检查 2 的残留检测名单）。**个人项目的旧名/目录约定属项目数据，写在自己的 config 里，不进 skill**。
+
 **同步检查**：
 
 ```bash

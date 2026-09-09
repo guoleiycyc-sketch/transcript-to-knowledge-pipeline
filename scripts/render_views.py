@@ -23,8 +23,13 @@ if '--view' in ARGS:
 MAX_SENS = 'P' if '--max-sens' not in ARGS else ARGS[ARGS.index('--max-sens') + 1]
 SENS_ORDER = {'N': 0, 'P': 1, 'H': 2}
 
+try:
+    _CFG = json.load(open(os.path.join(ROOT, 'pipeline.config.json'), encoding='utf-8'))
+except Exception:
+    _CFG = {}
+
 def load():
-    p = os.path.join(ROOT, '_全局资产', 'atoms.jsonl')
+    p = os.path.join(ROOT, _CFG.get('paths', {}).get('atoms', '_全局资产/atoms.jsonl'))
     if not os.path.exists(p):
         print(f'未找到 {p}，先跑 extract_atoms.py'); sys.exit(1)
     return [json.loads(l) for l in open(p) if l.strip()]
@@ -98,7 +103,7 @@ def view_share_html(atoms):
     return '\n'.join(h)
 
 atoms = load()
-gdir = os.path.join(ROOT, '_全局资产')
+gdir = os.path.join(ROOT, _CFG.get('paths', {}).get('views_dir', '_全局资产'))
 os.makedirs(gdir, exist_ok=True)
 
 if VIEW == 'methods':

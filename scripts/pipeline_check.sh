@@ -64,11 +64,24 @@ D=$(LC_ALL=C grep -c '\[ASR/存疑' 01_清洗稿.md)
 echo "  [ASR/存疑] 标注: $D 处"
 TAB=$(awk '/^## ASR 修正对照表/{f=1;next} /^## /{if(f)exit;next} f{print}' 01_清洗稿.md | LC_ALL=C grep -cE '^\|')
 echo "  对照表条目: $TAB 条"
-OLD_NAME_PATTERN="G|H|H|X|E|E|E"
-LEAK=$(grep -rE "$OLD_NAME_PATTERN" --include="*.md" . 2>/dev/null \
-  | grep -v "曾作\|原文\|疑" \
-  | grep -v "^Binary" | wc -l | tr -d ' ')
-[ "$LEAK" -eq 0 ] && ok "旧名/账号名无意义残留=0" || warn "旧名/账号名残留=$LEAK（请 grep 检查）"
+# 旧名/账号名残留检测：名单来自 <项目根>/pipeline.config.json 的 old_names 数组
+# （个人项目的订正旧名属项目数据，不硬编码进 skill 脚本）；未配置则跳过本检测
+OLD_NAME_PATTERN=$(python3 -c "
+import json, os, pathlib
+d = pathlib.Path(os.getcwd()).resolve()
+for p in [d, *d.parents]:
+    f = p / 'pipeline.config.json'
+    if f.exists():
+        print('|'.join(json.load(open(f, encoding='utf-8')).get('old_names', []))); break
+" 2>/dev/null)
+if [ -n "$OLD_NAME_PATTERN" ]; then
+  LEAK=$(grep -rE "$OLD_NAME_PATTERN" --include="*.md" . 2>/dev/null \
+    | grep -v "曾作\|原文\|疑" \
+    | grep -v "^Binary" | wc -l | tr -d ' ')
+  [ "$LEAK" -eq 0 ] && ok "旧名/账号名无意义残留=0" || warn "旧名/账号名残留=$LEAK（请 grep 检查）"
+else
+  ok "旧名残留检查：跳过（pipeline.config.json 未配 old_names）"
+fi
 
 # === 检查 3：金句格式 ===
 echo
@@ -168,8 +181,19 @@ done
 # === 检查 7：全局层同步（v2）===
 echo
 echo -e "${B}[检查 7] 全局层同步（v2）${N}"
-GLOBAL_DIR="$THEME_DIR/../_全局资产"
-[ -d "$GLOBAL_DIR" ] || GLOBAL_DIR="$THEME_DIR/../../_全局资产"  # v2.3.4：_成果目录 等子目录场次向上回退
+# 全局层目录名可由 pipeline.config.json 的 paths.views_dir 配置（默认 _全局资产）
+GLOBAL_NAME=$(python3 -c "
+import json, os, pathlib
+d = pathlib.Path(os.getcwd()).resolve()
+for p in [d, *d.parents]:
+    f = p / 'pipeline.config.json'
+    if f.exists():
+        print(json.load(open(f, encoding='utf-8')).get('paths', {}).get('views_dir', '_全局资产').strip('/')); break
+else:
+    print('_全局资产')
+" 2>/dev/null || echo '_全局资产')
+GLOBAL_DIR="$THEME_DIR/../$GLOBAL_NAME"
+[ -d "$GLOBAL_DIR" ] || GLOBAL_DIR="$THEME_DIR/../../$GLOBAL_NAME"  # 嵌套场次目录向上回退
 if [ -d "$GLOBAL_DIR" ]; then
   for asset in 引语库.md 方法论总库.md 干系人档案.md 决策与行动日志.md 母题总图.md; do
     [ -f "$GLOBAL_DIR/$asset" ] && echo "  ✓ $asset" || warn "$asset 缺失"

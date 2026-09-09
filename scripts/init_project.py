@@ -51,7 +51,14 @@ def main() -> int:
     delegation = "--delegation" in sys.argv
     root.mkdir(parents=True, exist_ok=True)
 
-    config = {"delegation": {"enabled": delegation}}
+    config = {
+        "delegation": {"enabled": delegation},
+        # 全局层目录名与扫描跳过目录（extract_atoms/render_views/pipeline_check 均读取）
+        "paths": {"views_dir": "_kb", "atoms": "_kb/atoms.jsonl"},
+        "skip_dirs": [],
+        # 身份订正过的旧名/账号名（pipeline_check 检查 2 的残留检测名单，按项目填写）
+        "old_names": [],
+    }
     print(f"初始化知识库项目骨架 → {root}" + ("（委派模式开）" if delegation else ""))
     write_if_absent(root / "pipeline.config.json",
                     json.dumps(config, ensure_ascii=False, indent=2) + "\n",
