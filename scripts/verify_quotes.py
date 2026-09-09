@@ -40,7 +40,12 @@ def load_turns(dirpath: str):
     s = open(p, encoding='utf-8').read()
     body = s.split('# 全场清洗逐字稿', 1)[-1]
     body = body.split('## 附录 A', 1)[0]
-    return {(w, t): txt for w, t, txt in QUOTE_RE.findall(body)}
+    # P42：合并包（多场连读）里同说话人+同时间戳跨场撞键（各场时间戳独立从 00:00 起），
+    # 字典单值会取后场覆盖前场 → 前场引文误报「不逐字」。改为列表，任一命中即通过。
+    turns = {}
+    for w, t, txt in QUOTE_RE.findall(body):
+        turns.setdefault((w, t), []).append(txt)
+    return turns
 
 def main():
     if len(sys.argv) < 2:
@@ -60,13 +65,13 @@ def main():
         rel = os.path.basename(fp)
         txt = open(fp, encoding='utf-8').read()
         for who, ts, quote in QUOTE_RE.findall(txt):
-            base = turn_map.get((who, ts))
-            if base is None:
+            bases = turn_map.get((who, ts)) or []
+            if not bases:
                 fails.append(f'{rel}: [{ts}]{who} 时间戳不在 01 正文（疑指向被合并段，应改段首）')
                 continue
             for seg_raw in re.split(r'…+|\.\.\.+|——', quote):
                 seg = norm(seg_raw)
-                if len(seg) > 10 and seg not in norm(base):
+                if len(seg) > 10 and not any(seg in norm(base) for base in bases):
                     fails.append(f'{rel}: [{ts}]{who} 引文不逐字:「{seg_raw[:36]}」')
         # 孤立时间戳（软警告：场景描述/头部说明合法）
         for ts in set(re.findall(r'\[(\d{1,2}:\d{2}(?::\d{2})?)\]', txt)):

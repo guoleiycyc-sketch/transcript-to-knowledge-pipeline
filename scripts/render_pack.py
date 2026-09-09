@@ -16,6 +16,10 @@ Recording Knowledge Pack — 通用渲染 wrapper。
 
 用法：
     python render_pack.py <场次目录> [--brand "显示名"]
+    python render_pack.py <场次目录> --share [--alias "陈岸→A,林一→B"]
+        --share  生成脱敏分享版 <场次名>_分享版.html：按敏感词规则剔除价格/健康级
+                 引言行（词表与 extract_atoms 同源），可选 --alias 做人名化名替换；
+                 在临时副本上处理，原稿不动。
 
 场次目录结构（详见 SKILL.md）：
     <场次目录>/
@@ -36,6 +40,8 @@ Safety: Python stdlib only - no network access, no subprocess, no dynamic execut
 """
 import sys
 import re
+import shutil
+import tempfile
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -715,7 +721,7 @@ def build_sidebar(brand, seg_meta, counts, has_strategy, has_brief=False, has_di
 # ============================================================
 def main():
     if len(sys.argv) < 2:
-        print("用法: python render_pack.py <场次目录> [--brand 显示名]")
+        print("用法: python render_pack.py <场次目录> [--brand 显示名] [--share [--alias 陈岸→A,林一→B]]")
         sys.exit(1)
     pack_dir = Path(sys.argv[1]).resolve()
     brand = pack_dir.name
@@ -723,6 +729,51 @@ def main():
         idx = sys.argv.index("--brand")
         if idx + 1 < len(sys.argv):
             brand = sys.argv[idx + 1]
+
+    # ---- --share 脱敏分享版：别名替换 + 敏感引语行剔除（临时副本上做，原稿不动）----
+    share_mode = "--share" in sys.argv
+    aliases = []
+    if "--alias" in sys.argv:
+        i = sys.argv.index("--alias")
+        if i + 1 < len(sys.argv):
+            for pair in sys.argv[i + 1].split(","):
+                for sep in ("→", "->"):
+                    if sep in pair:
+                        a, b = pair.split(sep, 1)
+                        aliases.append((a.strip(), b.strip()))
+                        break
+    out_dir = pack_dir          # 输出恒写真实场次目录
+    share_stats = {"dropped": 0, "aliased": 0}
+    if share_mode:
+        # 敏感词表与 extract_atoms.SENS_PAT/HEALTH_PAT 同源（价格/健康级引语剔除）
+        SHARE_SENS = re.compile(r'\d+\s*万|\d+\s*块钱|报价|一年是|元/|净收|利润|分红|底薪|结算'
+                                r'|可以做决定|视网膜|病|手术|住院|身体')
+        TS_INLINE = re.compile(r'\[\d{2,3}:\d{2}(?::\d{2})?\]')
+        shadow_root = Path(tempfile.mkdtemp(prefix="share_pack_"))
+        try:
+            shadow = shadow_root / pack_dir.name
+            shutil.copytree(pack_dir, shadow)
+            for p in shadow.rglob("*.md"):
+                txt = p.read_text(encoding="utf-8")
+                for a, b in aliases:
+                    if a in txt:
+                        share_stats["aliased"] += txt.count(a)
+                        txt = txt.replace(a, b)
+                lines = []
+                for ln in txt.splitlines():
+                    st = ln.lstrip()
+                    # 只剔「引言行」（金句/引用行首 + 带时间戳），叙述与表格不动
+                    if st.startswith(("**【", ">")) and TS_INLINE.search(st) and SHARE_SENS.search(st):
+                        share_stats["dropped"] += 1
+                        continue
+                    lines.append(ln)
+                p.write_text("\n".join(lines) + ("\n" if txt.endswith("\n") else ""),
+                             encoding="utf-8")
+            pack_dir = shadow
+        except Exception:
+            shutil.rmtree(shadow_root, ignore_errors=True)
+            raise
+
     seg_dir = pack_dir / "02_主题整理"
 
     def rd(name):
@@ -827,11 +878,17 @@ def main():
                                 "方法论卡 · 定义 + 出处 + 怎么用")
 
     # v2.3.7 起输出文件名=场次目录名（用户 2026-09-06 要求：index.html 无辨识度，浏览器标签/搜索分不清场次）
-    out_path = pack_dir / f"{pack_dir.name}.html"
+    out_name = f"{pack_dir.name}_分享版.html" if share_mode else f"{pack_dir.name}.html"
+    if share_mode:
+        brand = f"{brand} · 分享版"
+    out_path = out_dir / out_name
     out_path.write_text(html_out, encoding="utf-8")
     print(f"✓ 已生成 {out_path}（{out_path.stat().st_size / 1024:.1f} KB）")
     print(f"  段:{len(seg_meta)} 人:{counts['people']} 洞察:{counts['insights']} "
           f"方法论:{counts['method']} 术语:{counts['glossary']} 战略诊断:{'有' if has_strategy else '无'}")
+    if share_mode:
+        print(f"  分享版处理：敏感引语剔除 {share_stats['dropped']} 行 / 别名替换 {share_stats['aliased']} 处"
+              f"（06 数据表与叙述文字未过滤，外发前请人工过一遍）")
 
     # ---- 渲染质量自检（2026-08-19 六类缺陷的回归护栏）----
     problems = []
@@ -887,6 +944,9 @@ def main():
         print(f"{flag} ② 分段速览阅读量 {n_chars} 字（限额 {limit}，速览行 {len(rows)} 条；控件/卡胶囊不计）")
     if not has_brief and seg_dir.exists():
         print("⚠ 缺 00_执行摘要.md——①简报层不成立（v2.3 起标准/重装档必写）")
+
+    if share_mode and pack_dir != out_dir:
+        shutil.rmtree(pack_dir.parent, ignore_errors=True)  # 清理临时副本
 
 
 if __name__ == "__main__":

@@ -22,35 +22,40 @@ echo "=========================================="
 echo " pipeline_check.sh · $(basename "$DIR")"
 echo "=========================================="
 
-# === 自动提取人名（来源：正文回合标签 `**【xxx】** [ts]`）===
-# 头部映射格式多样（emoji/中文等号），不如直接抓正文实际出现的回合标签，最稳。
-if [ $# -eq 0 ]; then
-  BODY_NAMES=$(grep -oE '\*\*【[^】]+】\*\*' 01_清洗稿.md 2>/dev/null \
-    | sed 's/\*\*【//;s/】\*\*//' \
-    | grep -vE '^现场$|^参会者$|^未识别$' \
-    | sort -u)
-  if [ -z "$BODY_NAMES" ]; then
-    err "无法自动提取人名，请传参: bash pipeline_check.sh <dir> <人名1> ..."
-    exit 2
-  fi
-  NAMES="$BODY_NAMES"
-  echo "人名（自动提取）: $(echo "$NAMES" | tr '\n' ' ')"
-else
-  NAMES="$*"
+# === 自动提取人名（来源：正文回合标签 `**【xxx】** [ts]`）+ 检查 1 计数基底 ===
+# 一律走 python3：bash 3.2 双引号多字节展开吞噬 / BSD sed 中文乱码 / LC_ALL=C 字节级
+# 否定类三坑都会让计数假 0（P46）——提取与计数同源一次完成，天然自洽。
+NAMES="$*"
+CHK1=$(python3 -c '
+import re, sys, collections
+txt = open(sys.argv[1], encoding="utf-8").read()
+given = sys.argv[2].split() if len(sys.argv) > 2 and sys.argv[2] else []
+heads = [m.group(1) for m in re.finditer(r"^\*\*【([^】]+)】\*\* \[", txt, re.M)]
+names = given or sorted(set(heads) - {"现场", "参会者", "未识别"})
+cnt = collections.Counter(heads)
+print("NAMES " + " ".join(names))
+print("BAD " + str(len(re.findall(r"^\*\*【[^】]*\*\* \[", txt, re.M))))
+print("REM " + str(sum(c for n, c in cnt.items() if n.startswith("说话人"))))
+for n in names:
+    print("CNT %s %d" % (n, cnt.get(n, 0)))
+' 01_清洗稿.md "$NAMES") || { err "检查 1 python 计数失败"; exit 2; }
+NAMES=$(printf '%s\n' "$CHK1" | sed -n 's/^NAMES //p' | head -1)
+if [ -z "$NAMES" ]; then
+  err "无法自动提取人名，请传参: bash pipeline_check.sh <dir> <人名1> ..."
+  exit 2
 fi
+echo "人名（自动提取/传参）: $NAMES"
 
-# === 检查 1：说话人一致性 ===
+# === 检查 1：说话人一致性（计数沿用上方 python3 基底，避 P46 三坑）===
 echo
 echo -e "${B}[检查 1] 说话人一致性${N}"
-# LC_ALL=C 让 grep 把 CJK 当单字节处理，避免 illegal byte sequence
-BAD=$(LC_ALL=C grep -cE '^\*\*【[^】]*\*\* \[' 01_清洗稿.md)
+BAD=$(printf '%s\n' "$CHK1" | sed -n 's/^BAD //p')
 [ "$BAD" -eq 0 ] && ok "残缺标签=0" || err "残缺标签=$BAD（漏 】）"
-for n in $NAMES; do
-  C=$(LC_ALL=C grep -cE "^\*\*【$n】\*\* \[" 01_清洗稿.md)
-  echo "  $n: $C 回合"
+printf '%s\n' "$CHK1" | grep '^CNT' | cut -d' ' -f2,3 | while read -r n c; do
+  echo "  $n: $c 回合"
 done
-REM=$(LC_ALL=C grep -cE '^\*\*【说话人|^\*\*【X】|^\*\*【G】' 01_清洗稿.md)
-[ "$REM" -eq 0 ] && ok "ASR/旧标签残留=0" || err "ASR/旧标签残留=$REM"
+REM=$(printf '%s\n' "$CHK1" | sed -n 's/^REM //p')
+[ "$REM" -eq 0 ] && ok "ASR 标签残留=0" || err "ASR 标签残留=$REM（未替换的说话人N 标签）"
 
 # === 检查 2：ASR 残留 ===
 echo
