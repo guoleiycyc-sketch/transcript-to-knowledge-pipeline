@@ -4,7 +4,7 @@
 用法：
   python3 extract_atoms.py <录音项目根> [场次目录...]
 
-- 不传场次目录时**递归扫描**整个项目树（跳过 .git/_知识库/录音来源 等），
+- 不传场次目录时**递归扫描**整个项目树（跳过通用目录 + config 的 skip_dirs），
   凡「目录名以 _YYYY-MM-DD 结尾 且 含 03_方法论清单.md」即视为场次。
   旧版只扫固定两层，嵌套场次（E合作/02_沟通与会议/、_成果目录/ 等）
   曾两次漏抽（2026-08-25 某场次、2026-09-03 某场次），勿回退
@@ -119,7 +119,7 @@ def extract():
     return atoms
 
 def main():
-    _rel = _CFG.get('paths', {}).get('atoms', '_全局资产/atoms.jsonl')
+    _rel = _CFG.get('paths', {}).get('atoms', '_kb/atoms.jsonl')
     out_path = os.path.join(ROOT, _rel)
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     existing = {}

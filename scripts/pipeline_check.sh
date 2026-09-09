@@ -181,17 +181,17 @@ done
 # === 检查 7：全局层同步（v2）===
 echo
 echo -e "${B}[检查 7] 全局层同步（v2）${N}"
-# 全局层目录名可由 pipeline.config.json 的 paths.views_dir 配置（默认 _全局资产）
+# 全局层目录名可由 pipeline.config.json 的 paths.views_dir 配置（默认 _kb）
 GLOBAL_NAME=$(python3 -c "
 import json, os, pathlib
 d = pathlib.Path(os.getcwd()).resolve()
 for p in [d, *d.parents]:
     f = p / 'pipeline.config.json'
     if f.exists():
-        print(json.load(open(f, encoding='utf-8')).get('paths', {}).get('views_dir', '_全局资产').strip('/')); break
+        print(json.load(open(f, encoding='utf-8')).get('paths', {}).get('views_dir', '_kb').strip('/')); break
 else:
-    print('_全局资产')
-" 2>/dev/null || echo '_全局资产')
+    print('_kb')
+" 2>/dev/null || echo '_kb')
 GLOBAL_DIR="$THEME_DIR/../$GLOBAL_NAME"
 [ -d "$GLOBAL_DIR" ] || GLOBAL_DIR="$THEME_DIR/../../$GLOBAL_NAME"  # 嵌套场次目录向上回退
 if [ -d "$GLOBAL_DIR" ]; then
@@ -203,10 +203,10 @@ if [ -d "$GLOBAL_DIR" ]; then
   if [ -n "$SHORTID" ] && grep -q "$SHORTID" "$GLOBAL_DIR/引语库.md" 2>/dev/null; then
     ok "引语库已含本场（$SHORTID）"
   else
-    warn "引语库未登记本场——完成后应把金句/方法论/决策登记进 _全局资产/"
+    warn "引语库未登记本场——完成后应把金句/方法论/决策登记进 $GLOBAL_NAME/"
   fi
 else
-  warn "_全局资产/ 目录不存在（v2 全局层未建设）"
+  warn "$GLOBAL_NAME/ 目录不存在（全局层未建设，单场使用可忽略）"
 fi
 
 # === 检查 8：三层收敛（v2.3：①简报/②总结/③完整）===
