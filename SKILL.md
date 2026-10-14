@@ -7,7 +7,7 @@ description_zh: "对话录音转写稿清洗：说话人映射+逐回合还原�
 description_en: "Clean dialogue transcripts into a 9-module knowledge pack + searchable HTML"
 category: "Productivity"
 author: "Guo Lei"
-version: 3.1.4
+version: 3.3.1
 ---
 
 # Transcript → Knowledge Pipeline
@@ -28,6 +28,7 @@ version: 3.1.4
 ② 清洗（01_清洗稿）    ←—— 双源字段必写；标签脏数据检测 + 修复两道
       ↓
 ③ 9 模块产出（00、02–09）
+      （封口：③ 最后写 00a_一分钟简报——契约见 references/03）
       ↓
 ④ HTML 组装（render_pack.py）
       ↓
@@ -95,6 +96,7 @@ grep -cE '^\*\*【[^】]*\*\* \[' <场次目录>/01_清洗稿.md   # 应 = 0
 <项目根>/
   <场次名>_YYYY-MM-DD/
     ├── 00_执行摘要.md             ← BLUF 四段式；渲染时全四节进①可折叠摘要卡
+    ├── 00a_一分钟简报.md          ← 一分钟简报（轻加强及以上；封口动作，最后写）
     ├── 01_清洗稿.md               ← 素材层，不进 HTML，是全部引文的核证源头
     ├── 02_主题整理/               ← 每段一个文件；只做描述性编码
     ├── 03_方法论清单.md           ← 只收"遇 X→执行 Y"型 + 本场新增
@@ -105,7 +107,10 @@ grep -cE '^\*\*【[^】]*\*\* \[' <场次目录>/01_清洗稿.md   # 应 = 0
     ├── 08_洞察卡片.md             ← 每张 = 核心/证据/启示/反方（反方必填）
     ├── 09_战略诊断与行动清单.md   ← 凡有待办即出；开头=上期行动回顾（文件名固定，渲染器按此检测）
     ├── README.md
-    └── <场次名>.html              ← render_pack.py 一键生成（文件名=场次目录名）
+    ├── <场次名>.html              ← render_pack.py 一键生成（文件名=场次目录名）
+    ├── <场次名>_简报.html          ← render_pack 双产出（00a 存在时），单屏钻透版
+    ├── <场次名>_清洗稿.html        ← render_transcript.py 外发客户版（命名同规范，2026-09-16 起）
+    └── <场次名>_清洗稿.md          ← 同上 --format md（纯 Markdown 外发版，微信/协作工具直发）
   _全局层/                          ← 跨场累积层（目录名按项目习惯，可选，见 references/07）
 ```
 
@@ -119,10 +124,10 @@ grep -cE '^\*\*【[^】]*\*\* \[' <场次目录>/01_清洗稿.md   # 应 = 0
 |---|---|---|
 | 极轻 | 纯私人社交/收藏 | 仅 01 |
 | 轻 | 信息场/闲聊/破碎转写 | 00+01 |
-| 轻加强 | 外部音视频素材 | 01+00+02 单段+03+05+06+08 |
+| 轻加强 | 外部音视频素材 | 01+00+02 单段+03+05+06+08+00a |
 | 专项 | 用户点名只要某模块 | 01+指定模块 |
-| 标准 | 参访/训后/产品讨论 | 00+轻量 02+01 |
-| 重装 | 咨询/谈判/战略对齐 | 全套 00+01–09+HTML |
+| 标准 | 参访/训后/产品讨论 | 00+轻量 02+01+00a |
+| 重装 | 咨询/谈判/战略对齐 | 全套 00+01–09+HTML+00a |
 
 ## 操作总览
 
@@ -132,8 +137,12 @@ mkdir -p "<项目根>/<场次名>_YYYY-MM-DD/02_主题整理"
 
 # 2. 写 01_清洗稿（分块 Write/Edit，体例见 references/02）
 # 3. 写 00、02-09 模块（格式契约见 references/03）
-# 4. 渲染 HTML（脚本路径相对本 skill 目录）
+# 3b. 写 00a_一分钟简报（模块齐后的封口动作，轻加强及以上；五段契约见 references/03）
+# 4. 渲染 HTML（00a 存在时双产出简报页；脚本路径相对本 skill 目录）
 python3 <skill目录>/scripts/render_pack.py <场次目录>
+# 4b. 清洗稿外发版（客户项目需要发逐字稿时；见 references/04「清洗稿外发版」）
+python3 <skill目录>/scripts/render_transcript.py <场次目录>              # HTML 版
+python3 <skill目录>/scripts/render_transcript.py <场次目录> --format md  # MD 直发版
 
 # 5. 发布前质量门禁（一键，含收尾三问）
 bash <skill目录>/scripts/pipeline_check.sh <场次目录>
@@ -154,7 +163,8 @@ python3 <skill目录>/scripts/verify_quotes.py <场次目录>
 |---|---|
 | 新项目初始化（config+词表+来源索引三件套） | `python3 <skill目录>/scripts/init_project.py <项目根> [--delegation]` |
 | 装机/改动后端到端自检 | `python3 <skill目录>/scripts/selftest.py` |
-| 单场脱敏分享版 HTML | `render_pack.py <场次目录> --share [--alias "陈岸→A,林一→B"]` |
+| 单场脱敏分享版 HTML | `render_pack.py <场次目录> --share [--alias "陈舟→A,林舟→B"]` |
+| 清洗稿外发客户版 | `render_transcript.py <场次目录>`（HTML）/ `--format md`（纯 MD 直发）——剔除映射/词表等内部块，显示层套真名，产物按日期归档 `03_外发交付/<日期>/`，见 references/04 |
 | 清洗忠实度审计（原稿 vs 清洗稿机械对比） | `python3 <skill目录>/scripts/diff_report.py <原稿.md> <场次目录>` |
 | 看完整示例产物 | `example/示例场_SaaS定价讨论_2026-01-15/`（双击 HTML） |
 
@@ -162,6 +172,6 @@ python3 <skill目录>/scripts/verify_quotes.py <场次目录>
 
 - **映射期**：凭称呼判定身份；一次问完所有映射（只问最不确定的一个，保留追问余地）
 - **清洗期**：漏写右 `】`；分段读原文时脑补衔接段；正文回合加粗（炸下游逐字校验）
-- **提炼期**：引文凭记忆写（时间戳/措辞失配）；洞察卡反方写成免责声明
+- **提炼期**：引文凭记忆写（时间戳/措辞失配）；洞察卡反方写成免责声明；00a 钻透标记指向不存在的 §N/卡N（渲染 exit 1）
 - **渲染期**：段文件名/字段头不守契约（渲染器静默提 0，不报错）
 - **交付后**：重写 01 不重核下游引文；身份订正不做跨文件波及清理

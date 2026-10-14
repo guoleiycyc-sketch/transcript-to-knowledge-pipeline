@@ -16,7 +16,7 @@ Recording Knowledge Pack — 通用渲染 wrapper。
 
 用法：
     python render_pack.py <场次目录> [--brand "显示名"]
-    python render_pack.py <场次目录> --share [--alias "陈岸→A,林一→B"]
+    python render_pack.py <场次目录> --share [--alias "陈舟→A,林舟→B"]
         --share  生成脱敏分享版 <场次名>_分享版.html：按敏感词规则剔除价格/健康级
                  引言行（词表与 extract_atoms 同源），可选 --alias 做人名化名替换；
                  在临时副本上处理，原稿不动。
@@ -526,6 +526,151 @@ READ_PROTOCOL = (
 
 
 # ============================================================
+# 一分钟简报页（v3.3.0：00a_一分钟简报.md → <场次名>_简报.html）
+# 钻透标记 → 完整版锚点；标记解析不做目标校验，统一交给跨文件锚点核验兜底
+# ============================================================
+ONEPAGER_CSS = """
+body{font-family:"PingFang SC",system-ui,sans-serif;max-width:720px;margin:0 auto;
+     padding:32px 24px 48px;line-height:1.9;color:#1f2937;background:#fafaf8}
+.op-top{display:flex;justify-content:space-between;align-items:center;
+        border-bottom:1px solid #e5e2da;padding-bottom:12px;margin-bottom:20px;
+        font-size:13px;color:#8b8578}
+.op-top a{color:#2b62d6;text-decoration:none}
+.op-meta{font-size:13px;color:#8b8578;margin:0 0 18px}
+.op-h1{font-size:23px;line-height:1.5;margin:0 0 22px}
+.op-block{border-left:3px solid #d8d2c4;background:#fff;border-radius:0 8px 8px 8px;
+          padding:14px 20px;margin:0 0 12px}
+.op-h2{font-size:13px;color:#8b8578;margin:0 0 8px;font-weight:600;letter-spacing:.05em}
+.op-block p{margin:.4em 0}
+.op-dive{margin-top:20px;font-size:14px;color:#6b6558}
+a.dive{color:#2b62d6;text-decoration:none;border-bottom:1px dashed #9db4e8}
+footer{margin-top:26px;font-size:12px;color:#b3ac9d;text-align:center}
+"""
+
+
+def _op_linkify(body_html: str, pack_name: str = "") -> str:
+    """00a 钻透标记 → 完整版锚点链接（§N / 卡N / 待办区）。
+
+    pack_name 非空（= 完整版文件名，已含 .html）：跨文件锚，直接拼 #，不再补
+    .html——否则产出 <场次名>.html.html#X，跨文件锚点核验正则也匹配不上（双失）。
+    pack_name 为空：--brief-inline 内嵌模式，产页内锚 #segN/#insight-N/#strategy。
+    卡N 带汉字后视边界：防「打卡10次」这类「汉字+卡+数字」粘连形态误链
+    （§ 无汉字粘连形态，不必加）；圈号①-⑳ 由 inline_fmt 产出的页内 #segN
+    在简报页是死锚，跨文件模式在此改指完整版分段——自动纳入 op_bad 核验；
+    内嵌模式保持页内 #segN 即为正确目标，不得再拼前缀。
+    """
+    body_html = re.sub(r"§(\d+)",
+                       rf'<a class="dive" href="{pack_name}#seg\1">§\1</a>',
+                       body_html)
+    body_html = re.sub(r"(?<![一-鿿])卡(\d+)",
+                       rf'<a class="dive" href="{pack_name}#insight-\1">卡\1</a>',
+                       body_html)
+    body_html = body_html.replace(
+        "待办区", f'<a class="dive" href="{pack_name}#strategy">待办区</a>')
+    if pack_name:
+        return body_html.replace(
+            'class="cir-link" href="#seg',
+            f'class="cir-link" href="{pack_name}#seg')
+    return body_html
+
+
+def _op_section(onepa_md: str, title: str) -> str:
+    """取 00a 某 `## 小节` 的正文（到下一个 ## 或文末）。"""
+    m = re.search(rf"^## {re.escape(title)}[ \t]*$(.*?)(?=^## |\Z)",
+                  onepa_md, re.S | re.M)
+    return m.group(1).strip() if m else ""
+
+
+def _op_render_body(body: str) -> str:
+    """00a 小节正文 → HTML（- 列表项剥前缀；短文档不走完整 md 管线）。"""
+    out = []
+    for para in body.split("\n\n"):
+        lines = [l.strip() for l in para.splitlines() if l.strip()]
+        if not lines:
+            continue
+        if all(l.startswith("- ") for l in lines):
+            out.append("<ul>" + "".join(
+                f"<li>{B.inline_fmt(l[2:])}</li>" for l in lines) + "</ul>")
+        else:
+            out.append("".join(
+                f"<p>{B.inline_fmt(l)}</p>" for l in lines))
+    return "".join(out)
+
+
+def _op_meta_line(onepa_md: str) -> str:
+    meta = onepa_md.split("## 一句话结论", 1)[0]
+    return next((l.strip("# ").strip() for l in meta.splitlines()
+                 if l.strip() and not l.startswith("# ")), "")
+
+
+# 内嵌卡小节头样式（不动 build_html.py；onepager-inline 类仅作识别钩子）
+_OP_H4_STYLE = ('style="font-size:12px;color:var(--muted);margin:8px 0 4px;'
+                'letter-spacing:.05em"')
+
+
+def render_onepager_inline(onepa_md: str) -> str:
+    """00a_一分钟简报.md → 主包第 0 层首屏可折叠卡（--brief-inline 模式）。
+
+    复用①摘要卡的 brief-card 折叠体系（原生 details 零 JS，锚点跳入自动展开
+    由 build_html 的 DETAILS 祖先钩子天然覆盖）；钻透链接全部页内锚
+    （_op_linkify 空 target），死目标由写盘前核验 exit 1 兜底。
+    """
+    h1 = _op_section(onepa_md, "一句话结论")
+    parts = [
+        '<details class="brief-card onepager-inline" open>',
+        '<summary class="brief-card-sum"><span class="bc-num">⓪</span>',
+        '<span class="bc-title">一分钟简报</span>',
+        '<span class="bc-hint">60 秒 · 结论 · 三条核心 · 待办 · 提醒 · 深读</span></summary>',
+        '<div class="brief-card-body">',
+        f'<p class="op-meta">{B.esc(_op_meta_line(onepa_md))}</p>',
+        f'<div class="bc-sec"><h4 class="op-h4" {_OP_H4_STYLE}>一句话结论</h4>'
+        f'{_op_linkify(B.inline_fmt(h1))}</div>',
+    ]
+    for title in ("三条核心", "决定与待办", "一个提醒", "值得深读"):
+        body = _op_linkify(_op_render_body(_op_section(onepa_md, title)))
+        parts.append(f'<div class="bc-sec"><h4 class="op-h4" {_OP_H4_STYLE}>'
+                     f'{title}</h4>{body}</div>')
+    parts.append('<div class="brief-foot"><a class="dive-link bf-skip" '
+                 'href="#brief">① 执行摘要 ↓</a></div>')
+    parts.append('</div></details>')
+    return "".join(parts)
+
+
+def build_onepager(onepa_md: str, brand: str, pack_name: str) -> str:
+    """00a_一分钟简报.md → 独立单屏简报页 HTML。
+
+    五块结构（契约见 references/03）；正文按行渲染（- 列表项剥前缀），
+    00a 本身是短文档，不走完整 md 管线。
+    """
+
+    def block(title: str, body: str) -> str:
+        return (f'<section class="op-block"><h2 class="op-h2">{title}</h2>'
+                f"{_op_linkify(_op_render_body(body), pack_name)}</section>")
+
+    h1 = _op_section(onepa_md, "一句话结论")
+    meta = onepa_md.split("## 一句话结论", 1)[0]
+    meta_line = next((l.strip("# ").strip() for l in meta.splitlines()
+                      if l.strip() and not l.startswith("# ")), "")
+    parts = [
+        '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">',
+        f"<title>{B.esc(brand)} · 一分钟简报</title>",
+        f"<style>{ONEPAGER_CSS}</style></head><body>",
+        '<div class="op-top"><span>⏱ 一分钟简报</span>'
+        f'<a href="{pack_name}">完整版（三层阅读）→</a></div>',
+        f'<p class="op-meta">{B.esc(meta_line)}</p>',
+        '<h2 class="op-h2">一句话结论</h2>'
+        f'<h1 class="op-h1">{_op_linkify(B.inline_fmt(h1), pack_name)}</h1>',
+        block("三条核心", _op_section(onepa_md, "三条核心")),
+        block("决定与待办", _op_section(onepa_md, "决定与待办")),
+        block("一个提醒", _op_section(onepa_md, "一个提醒")),
+        block("值得深读", _op_section(onepa_md, "值得深读")),
+        '<p class="op-dive">每个 §N / 卡N 都可点击下潜到完整版对应位置。</p>',
+        "<footer>仅供内部留存 · 核证链在完整版</footer></body></html>",
+    ]
+    return "".join(parts)
+
+
+# ============================================================
 # 通用渲染函数（monkey-patch 母版写死的部分）
 # ============================================================
 def make_render_overview(seg_meta, people, mother, brand):
@@ -684,8 +829,10 @@ def render_insights_generic(insights_md):
 
 
 def build_sidebar(brand, seg_meta, counts, has_strategy, has_brief=False, has_digest=False,
-                  show_overview=True):
+                  show_overview=True, op_inline=False):
     nav = []
+    if op_inline:
+        nav.append('<a href="#onepager">⓪ 一分钟简报</a>')
     if has_brief:
         nav.append('<a href="#brief">① 执行摘要</a>')
     if show_overview:
@@ -721,10 +868,12 @@ def build_sidebar(brand, seg_meta, counts, has_strategy, has_brief=False, has_di
 # ============================================================
 def main():
     if len(sys.argv) < 2:
-        print("用法: python render_pack.py <场次目录> [--brand 显示名] [--share [--alias 陈岸→A,林一→B]]")
+        print("用法: python render_pack.py <场次目录> [--brand 显示名] [--brief-inline] "
+              "[--share [--alias 陈舟→A,林舟→B]]")
         sys.exit(1)
     pack_dir = Path(sys.argv[1]).resolve()
     brand = pack_dir.name
+    brief_inline = "--brief-inline" in sys.argv  # 00a 内嵌主包第 0 层，不产独立简报页
     if "--brand" in sys.argv:
         idx = sys.argv.index("--brand")
         if idx + 1 < len(sys.argv):
@@ -789,6 +938,9 @@ def main():
     # v2.3.8 三层阅读 v2：①摘要卡（00_执行摘要全 BLUF）②分段速览（各段 ## 摘要）
     exec_md = rd("00_执行摘要.md")
     has_brief = bool(exec_md)
+    onepa_md = rd("00a_一分钟简报.md")
+    has_onepager = bool(onepa_md) and not share_mode and not brief_inline  # 分享版/内嵌模式不产独立简报页
+    op_inline = bool(onepa_md) and brief_inline and not share_mode  # share 与 inline 并用时 inline 失效（分享版语义不变）
     rows = seg_digest_rows(seg_dir, seg_meta)
     has_digest = has_brief and bool(rows or mother)
     insight_nums = set(re.findall(r"^##\s+卡\s*(\d+)", insights_md, re.M))
@@ -826,6 +978,10 @@ def main():
                               ("data", rd("06_关键数据速查.md"))) if has), "seg1")
     library_anchor = f"#{lib_first}"
     sections = []
+    if op_inline:
+        # 第 0 层：一分钟简报内嵌卡（置于①摘要卡之前，顺序即文档序）
+        sections.append('    <section id="onepager">\n'
+                        + render_onepager_inline(onepa_md) + '\n    </section>')
     if has_brief:
         sections.append('    <section id="brief">\n'
                         + render_brief(exec_md, [p["name"] for p in people], insight_nums,
@@ -862,12 +1018,24 @@ def main():
             sections.append(f'    <section id="seg{i}">\n' + B.render_seg(i, seg_md) + '\n    </section>')
 
     tpl = B.TEMPLATE.replace("    <!--SECTIONS-->", "\n\n".join(sections))
-    sidebar = build_sidebar(brand, seg_meta, counts, has_strategy, has_brief, has_digest, show_overview)
+    sidebar = build_sidebar(brand, seg_meta, counts, has_strategy, has_brief, has_digest,
+                            show_overview, op_inline)
     html_out = re.sub(r'<aside class="sidebar".*?</aside>', sidebar, tpl, count=1, flags=re.S)
     # v2.3 阅读协议横幅插在 main 顶部（有①层才提示三层协议；轻档场不打扰）
     if has_brief:
+        protocol = READ_PROTOCOL
+        if op_inline:
+            protocol = protocol.replace(
+                "<span>① ",
+                '<span>⓪ <a class="dive-link" href="#onepager">一分钟简报</a>'
+                "（60 秒）</span><span>① ", 1)
+        elif has_onepager:
+            protocol = protocol.replace(
+                "<span>① ",
+                f'<span>⏱ <a class="dive-link" href="{pack_dir.name}_简报.html">'
+                "一分钟版</a>（更快）</span><span>① ", 1)
         html_out = re.sub(r"(<main[^>]*>)",
-                          lambda m: m.group(1) + "\n    " + READ_PROTOCOL,
+                          lambda m: m.group(1) + "\n    " + protocol,
                           html_out, count=1)
     # 修母版里写死首场的标题/副标题
     html_out = html_out.replace("<title>聊聊AI工业应用 · 全场整理</title>",
@@ -881,11 +1049,44 @@ def main():
     out_name = f"{pack_dir.name}_分享版.html" if share_mode else f"{pack_dir.name}.html"
     if share_mode:
         brand = f"{brand} · 分享版"
+
+    # ---- v3.3.1 写盘原子性：简报页构建+跨文件锚点核验前移至两页任何写盘之前 ----
+    # op_bad 触发 exit 1 时盘上不再残留「新主包+死回链」残件——主包横幅已指向
+    # _简报.html，先落盘而简报页缺席/带死链 = 新包即残件。分享版与简报页互斥
+    # （has_onepager 已排除 share_mode），brand 在此处的「· 分享版」后缀不影响本序。
+    ids = set(re.findall(r'id="([\w-]+)"', html_out))
+    op_html = ""
+    if has_onepager:
+        op_html = build_onepager(onepa_md, brand, f"{pack_dir.name}.html")
+        op_bad = sorted({a for a in re.findall(
+            rf'href="{re.escape(pack_dir.name)}\.html#([\w-]+)"', op_html)
+            if a not in ids})
+        if op_bad:
+            print(f"✗ 简报页死锚点（完整版无此目标，请核 §N/卡N/待办区 标记）："
+                  f"{', '.join(op_bad)}")
+            sys.exit(1)  # 此处两页均未写盘（核验先Q切 write_text）
+    if op_inline:
+        # 内嵌卡页内锚核验（与独立简报页同强度：死目标 exit 1，先于写盘）
+        m_op = re.search(r'<section id="onepager">.*?</section>', html_out, re.S)
+        op_bad = sorted({a for a in re.findall(
+            r'href="#([\w-]+)"', m_op.group(0)) if a not in ids}) if m_op else []
+        if op_bad:
+            print(f"✗ 内嵌简报卡死锚点（主包无此目标，请核 §N/卡N/待办区 标记）："
+                  f"{', '.join(op_bad)}")
+            sys.exit(1)
+
     out_path = out_dir / out_name
     out_path.write_text(html_out, encoding="utf-8")
     print(f"✓ 已生成 {out_path}（{out_path.stat().st_size / 1024:.1f} KB）")
     print(f"  段:{len(seg_meta)} 人:{counts['people']} 洞察:{counts['insights']} "
           f"方法论:{counts['method']} 术语:{counts['glossary']} 战略诊断:{'有' if has_strategy else '无'}")
+    if has_onepager:
+        print("  简报页:有（00a）")
+    if op_inline:
+        print("  简报页:内嵌（--brief-inline，未产独立文件）")
+        if (out_dir / f"{pack_dir.name}_简报.html").exists():
+            print(f"  ⚠ 盘上存在旧版独立简报页（{pack_dir.name}_简报.html），"
+                  "内嵌模式不自动删除，请确认后手工清理")
     if share_mode:
         print(f"  分享版处理：敏感引语剔除 {share_stats['dropped']} 行 / 别名替换 {share_stats['aliased']} 处"
               f"（06 数据表与叙述文字未过滤，外发前请人工过一遍）")
@@ -922,14 +1123,18 @@ def main():
             print(f"  - {p}")
     else:
         print("✓ 渲染质量自检通过（副标题/对比色/死类/重复注/锚点/收敛）")
-    # ---- v2.3 三层收敛检查 ----
-    ids = set(re.findall(r'id="([\w-]+)"', html_out))
+    # ---- v2.3 三层收敛检查（ids 已在写盘前算好，v3.3.1 前移）----
     bad_anchors = sorted({a for a in re.findall(r'href="#([\w-]+)"', html_out) if a not in ids})
     if bad_anchors:
         print(f"⚠ 死锚点（href 目标不存在）：{', '.join(bad_anchors[:6])}")
     else:
         n_links = len(re.findall(r'class="dive-link', html_out))
         print(f"✓ 锚点全部有效（下潜链接 {n_links} 处）")
+    # ---- v3.3.0 一分钟简报页落盘（构建+跨文件锚点核验已前移至任何写盘之前）----
+    if has_onepager:
+        op_path = out_dir / f"{pack_dir.name}_简报.html"
+        op_path.write_text(op_html, encoding="utf-8")
+        print(f"✓ 已生成 {op_path}（一分钟简报页，钻透链接已核验）")
     m_dg = re.search(r'<section id="digest">(.*?)</section>', html_out, re.S)
     if m_dg:
         # 阅读量统计：剥卡胶囊与「展开该段」控件（点选≠阅读）

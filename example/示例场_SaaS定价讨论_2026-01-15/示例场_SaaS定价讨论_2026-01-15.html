@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>示例场_SaaS定价讨论_2026-01-15 · 全场整理</title>
+<script>/* 主题恢复前置（防暗色用户首帧白闪）：在 CSS 解析前同步设置，与第 3 节切换器共用 localStorage 键 */
+try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 <style>
 :root{
   --bg:#f7f8fa;--surface:#fff;--text:#1f2329;--muted:#646a73;--border:#ebedf0;
@@ -280,12 +282,22 @@ blockquote{
   margin-right:8px;font-weight:600;vertical-align:middle;
 }
 .quote a.ts:hover{text-decoration:none;opacity:.9}
+/* v2.3.9 时间戳可点（复制到剪贴板，见 JS 第 5 节）：指针提示 */
+.quote .ts[data-ts]{cursor:pointer}
 .quote::after{
   content:"复制";position:absolute;right:12px;top:12px;
   font-size:11px;color:var(--muted);opacity:0;transition:opacity .15s;
 }
-.quote:hover::after{opacity:.7}
+/* :focus 与 :hover 并列：触屏点按/键盘聚焦也能看到复制提示（触屏无 hover） */
+.quote:hover::after,.quote:focus::after{opacity:.7}
 .quote.copied::after{content:"已复制 ✓";opacity:1;color:#2da94f}
+/* v2.3.9 复制时间戳的 toast 提示（触屏/无 hover 环境的反馈通道） */
+.kb-toast{
+  position:fixed;left:50%;bottom:32px;transform:translateX(-50%);
+  background:#24292f;color:#fff;padding:8px 18px;border-radius:8px;
+  font-size:13px;line-height:1.5;z-index:9999;max-width:86vw;text-align:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.28);
+}
 
 /* 原文节选折叠 */
 details.raw-details{
@@ -347,6 +359,8 @@ p.aside{
 .aside-tag{font-family:ui-monospace,monospace;color:var(--accent);font-weight:600}
 
 /* 表格 */
+/* v2.3.9 横向滚动容器：render_table 输出统一包裹，窄屏宽表不再溢出裁切 */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .md-table,.data-table{
   border-collapse:collapse;width:100%;font-size:13px;margin:14px 0;
   background:var(--surface);border:1px solid var(--border);border-radius:8px;
@@ -503,6 +517,11 @@ pre.ascii-map{
   padding:14px 18px;cursor:pointer;list-style:none;user-select:none;
 }
 .brief-card>summary::-webkit-details-marker{display:none}
+/* v2.3.9 Firefox 消双三角：list-style:none 之外补 ::marker 清空
+   （FF 的 summary marker 不受 webkit 前缀规则影响） */
+.brief-card>summary::marker,
+details.raw-details>summary::marker,
+details.seg-raw-details>summary::marker{content:""}
 .brief-card>summary::before{
   content:"▶ ";font-size:10px;margin-right:2px;display:inline-block;
   transition:transform .15s;color:var(--accent);
@@ -665,9 +684,9 @@ pre.ascii-map::before{
 </head>
 <body>
 <div class="layout">
-  <aside class="sidebar" id="sidebar"><div class="sidebar-brand">示例场_SaaS定价讨论_2026-01-15<small>录音知识包 · 结构化整理</small></div><nav><a href="#brief">① 执行摘要</a><a href="#digest">② 分段速览</a><a href="#people">人物角色卡（2 人）</a><a href="#map">议题关联地图</a><a href="#insights">洞察卡片（1 张）</a><a href="#method">方法论清单（1 卡）</a><a href="#strategy">战略诊断与行动清单</a><a href="#glossary">术语表（2 条）</a><a href="#data">关键数据速查</a><div class="nav-group"><div class="nav-group-title">主题分段（全文层）</div><a href="#seg1">定价模式之争</a></div></nav><div class="sidebar-foot" style="margin-top:14px;padding:10px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">由 transcript-to-knowledge-pipeline 生成</div></aside>
+  <aside class="sidebar" id="sidebar"><div class="sidebar-brand">示例场_SaaS定价讨论_2026-01-15<small>录音知识包 · 结构化整理</small></div><nav><a href="#onepager">⓪ 一分钟简报</a><a href="#brief">① 执行摘要</a><a href="#digest">② 分段速览</a><a href="#people">人物角色卡（2 人）</a><a href="#map">议题关联地图</a><a href="#insights">洞察卡片（1 张）</a><a href="#method">方法论清单（1 卡）</a><a href="#strategy">战略诊断与行动清单</a><a href="#glossary">术语表（2 条）</a><a href="#data">关键数据速查</a><div class="nav-group"><div class="nav-group-title">主题分段（全文层）</div><a href="#seg1">定价模式之争</a></div></nav><div class="sidebar-foot" style="margin-top:14px;padding:10px 12px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)">由 transcript-to-knowledge-pipeline 生成</div></aside>
   <main>
-    <div class="read-protocol"><b>三层阅读</b><span class="rp-tip">按需下潜：读完摘要即可走，有意思再往下点——省的是你的大脑</span><span>① <a class="dive-link" href="#brief">执行摘要</a>（10 秒，一张卡）</span><span>② <a class="dive-link" href="#digest">分段速览</a>（3 分钟，条目可下潜）</span><span>③ 完整模块（左侧导航，按需查证）</span></div>
+    <div class="read-protocol"><b>三层阅读</b><span class="rp-tip">按需下潜：读完摘要即可走，有意思再往下点——省的是你的大脑</span><span>⓪ <a class="dive-link" href="#onepager">一分钟简报</a>（60 秒）</span><span>① <a class="dive-link" href="#brief">执行摘要</a>（10 秒，一张卡）</span><span>② <a class="dive-link" href="#digest">分段速览</a>（3 分钟，条目可下潜）</span><span>③ 完整模块（左侧导航，按需查证）</span></div>
     <div class="topbar">
       <div class="topbar-group topbar-left">
         <button class="icon hamburger" id="hamburgerBtn" aria-label="菜单">☰</button>
@@ -686,6 +705,10 @@ pre.ascii-map::before{
       </div>
     </div>
 
+    <section id="onepager">
+<details class="brief-card onepager-inline" open><summary class="brief-card-sum"><span class="bc-num">⓪</span><span class="bc-title">一分钟简报</span><span class="bc-hint">60 秒 · 结论 · 三条核心 · 待办 · 提醒 · 深读</span></summary><div class="brief-card-body"><p class="op-meta">示例场_SaaS定价讨论（2026-01-15）｜陈舟、林舟｜约 26 分钟｜1 段</p><div class="bc-sec"><h4 class="op-h4" style="font-size:12px;color:var(--muted);margin:8px 0 4px;letter-spacing:.05em">一句话结论</h4>两位创始人在订阅制与按量计费之间争出折中：席位订阅打底 + 用量封顶的阶梯加购，客户账单上限可预期。</div><div class="bc-sec"><h4 class="op-h4" style="font-size:12px;color:var(--muted);margin:8px 0 4px;letter-spacing:.05em">三条核心</h4><ul><li>争点本质是「客户成功成本谁承担」：按量制把解释成本推给客户，订阅制把超用风险留给厂商 <span class="arrow">→</span> 深读 <a class="dive" href="#seg1">§1</a></li><li><strong>【陈舟】</strong> [00:05:38] 按用量收在私董会上被批过一次，大家说看不懂账单，续费的时候全炸了。</li><li>林舟以「席位含额度 + 超出阶梯计费」破局，成为双方接受的基础方案 <span class="arrow">→</span> 深读 <a class="dive" href="#insight-1">卡1</a></li></ul></div><div class="bc-sec"><h4 class="op-h4" style="font-size:12px;color:var(--muted);margin:8px 0 4px;letter-spacing:.05em">决定与待办</h4><ul><li>两周内找 3 家标杆客户试点阶梯计费，验证账单可解释性 <span class="arrow">→</span> <a class="dive" href="#strategy">待办区</a></li></ul></div><div class="bc-sec"><h4 class="op-h4" style="font-size:12px;color:var(--muted);margin:8px 0 4px;letter-spacing:.05em">一个提醒</h4><p>示例场为演示数据，本简报仅用于渲染与校验链路测试。</p></div><div class="bc-sec"><h4 class="op-h4" style="font-size:12px;color:var(--muted);margin:8px 0 4px;letter-spacing:.05em">值得深读</h4><p><a class="dive" href="#seg1">§1</a> 定价模式之争 ｜ <a class="dive" href="#insight-1">卡1</a> 计费折中洞察 ｜ <a class="dive" href="#strategy">待办区</a></p></div><div class="brief-foot"><a class="dive-link bf-skip" href="#brief">① 执行摘要 ↓</a></div></div></details>
+    </section>
+
     <section id="brief">
 <details class="brief-card" open>
 <summary class="brief-card-sum"><span class="bc-num">①</span><span class="bc-title">执行摘要</span><span class="bc-hint">局势 · 决策 · 待办 · 风险 —— 读完这张卡就够，不够再下潜</span></summary>
@@ -694,7 +717,7 @@ pre.ascii-map::before{
 <div class="bc-sec"><p><strong>本场决策/结论</strong>：</p>
 <ol><li>新模块收费改为「席位 + 包含额度 + 超出阶梯封顶」的混合制（详见 <a class="dive-link" href="#insight-1">卡1</a>、<a class="dive-link" href="#seg1">第1段</a>）</li><li>定价话术锁死一句话版本，新销售三天能讲明白是硬约束</li><li>前十家客户用量测算支撑：混合制平均增收约 18%</li></ol></div>
 <div class="bc-sec bc-todo"><p><strong>待办</strong>：| 行动 | Owner | 期限 |</p>
-<table class="data-table sortable"><thead><tr><th>---</th><th>---</th><th>---</th></tr></thead><tbody><tr><td>出正式定价测算表（全量客户）</td><td>林一</td><td>下周例会前</td></tr></tbody></table></div>
+<div class="table-wrap"><table class="data-table sortable"><thead><tr><th>---</th><th>---</th><th>---</th></tr></thead><tbody><tr><td>出正式定价测算表（全量客户）</td><td>林舟</td><td>下周例会前</td></tr></tbody></table></div></div>
 <div class="bc-sec bc-risk"><p><strong>风险/未决</strong>：老客户迁移口径未定（被席位制收便宜的那家如何过渡）。</p></div>
 <div class="brief-foot"><a class="dive-link bf-skip" href="#people">跳过摘要，看全库内容 ↓</a><span class="bf-sep">·</span><a class="dive-link" href="#digest">② 分段速览（各段一行）</a></div>
 </div></details>
@@ -705,7 +728,7 @@ pre.ascii-map::before{
 <p class="seg-subtitle">各段摘要一行一段 · 点击任意条目展开该段 · 3 分钟读完</p>
 <div class="card"><h3>母题</h3><p>收费逻辑如何跟上成本结构——一场从默认方案到混合定价的收敛。</p></div>
 <div class="card"><ol class="seg-quick">
-<li class="sq-row"><a class="sq-num" href="#seg1" aria-label="第1段">1</a><div class="sq-body"><a class="sq-title" href="#seg1">第1段 · 定价模式之争</a><p class="sq-sum">开场陈岸提出按席位收费的倾向（好理解、好销售），林一以成本结构反驳：重用量集中在少数账号，纯席位制等于为大量闲置账号买单。争论聚焦到「按用量看不懂账单」的历史教训，林一给出混合方案（席位含额度+超出阶……</p></div><a class="sq-open" href="#seg1">展开该段 ↓</a></li>
+<li class="sq-row"><a class="sq-num" href="#seg1" aria-label="第1段">1</a><div class="sq-body"><a class="sq-title" href="#seg1">第1段 · 定价模式之争</a><p class="sq-sum">开场陈舟提出按席位收费的倾向（好理解、好销售），林舟以成本结构反驳：重用量集中在少数账号，纯席位制等于为大量闲置账号买单。争论聚焦到「按用量看不懂账单」的历史教训，林舟给出混合方案（席位含额度+超出阶……</p></div><a class="sq-open" href="#seg1">展开该段 ↓</a></li>
 </ol></div>
 <div class="card"><h3>核心洞察</h3><div class="digest-insights">
 <a class="dive-link" href="#insight-1">卡1 · 「看不懂账单」多数时候是计量问题，不是收费逻辑问题</a>
@@ -717,32 +740,32 @@ pre.ascii-map::before{
 <h2 class="seg-title">人物角色卡</h2>
 <p class="seg-subtitle">2 位发言者 · 头像 / 发言量</p>
 <div class="people-grid">
-<div class="card people-card"><div class="people-head"><div class="avatar" style="background:#2b62d6">陈</div><div class="people-meta"><div class="people-name">陈岸</div></div></div><div class="people-bar-wrap"><div class="people-bar-label">发言量 约 45%</div><div class="people-bar-track"><div class="people-bar" style="width:45%;background:#2b62d6"></div></div></div></div>
-<div class="card people-card"><div class="people-head"><div class="avatar" style="background:#0c7f63">林</div><div class="people-meta"><div class="people-name">林一</div></div></div><div class="people-bar-wrap"><div class="people-bar-label">发言量 约 55%</div><div class="people-bar-track"><div class="people-bar" style="width:55%;background:#0c7f63"></div></div></div></div>
+<div class="card people-card"><div class="people-head"><div class="avatar" style="background:#2b62d6">陈</div><div class="people-meta"><div class="people-name">陈舟</div></div></div><div class="people-bar-wrap"><div class="people-bar-label">发言量 约 50%</div><div class="people-bar-track"><div class="people-bar" style="width:50%;background:#2b62d6"></div></div></div></div>
+<div class="card people-card"><div class="people-head"><div class="avatar" style="background:#0c7f63">林</div><div class="people-meta"><div class="people-name">林舟</div></div></div><div class="people-bar-wrap"><div class="people-bar-label">发言量 约 50%</div><div class="people-bar-track"><div class="people-bar" style="width:50%;background:#0c7f63"></div></div></div></div>
 </div>
 <details class="raw-details" open><summary>详细人物角色卡（背景 / 进场 / 本场作用 / 代表发言）</summary><div class="raw-body people-detail">
 <div class="card people-detail-card" style="border-left:4px solid #2b62d6">
-<h3 class="people-detail-name" style="color:#2b62d6">陈岸</h3>
+<h3 class="people-detail-name" style="color:#2b62d6">陈舟</h3>
 <p><strong>角色标签</strong>：创始人 主持人 商务判断</p>
 <p><strong>背景与立场</strong>：定价决策的拍板者，优先考虑客户认知成本与销售可复制性。</p>
 <p>展开：开场带默认方案（席位制），被反驳后不护短，快速转入约束条件（话术不能复杂）推动收敛。</p>
 <p><strong>进场时间</strong>：00:00</p>
-<p><strong>发言量占比</strong>：约 45%</p>
+<p><strong>发言量占比</strong>：约 50%（5/10 回合）</p>
 <p><strong>本场作用</strong>：议题发起者 + 约束设定者</p>
 <p><strong>代表发言</strong>：</p>
-<div class="quote"><span class="ts">[00:16:02] 陈岸</span> 我的底线是销售话术不能变复杂，一个新销售三天要能讲明白。</div>
+<div class="quote" tabindex="0" role="button" aria-label="复制金句"><span class="ts">[00:16:02] 陈舟</span> 我的底线是销售话术不能变复杂，一个新销售三天要能讲明白。</div>
 <hr class="soft">
 </div>
 <div class="card people-detail-card" style="border-left:4px solid #0c7f63">
-<h3 class="people-detail-name" style="color:#0c7f63">林一</h3>
+<h3 class="people-detail-name" style="color:#0c7f63">林舟</h3>
 <p><strong>角色标签</strong>：技术合伙人 成本视角 方案设计者</p>
 <p><strong>背景与立场</strong>：从成本结构与数据测算出发挑战默认方案，本场实质的方案输出者。</p>
 <p>展开：先立事实（用量分布倾斜）再反驳，主动完成客户用量测算，最后用一句话话术消除落地顾虑。</p>
 <p><strong>进场时间</strong>：00:02</p>
-<p><strong>发言量占比</strong>：约 55%</p>
+<p><strong>发言量占比</strong>：约 50%（5/10 回合）</p>
 <p><strong>本场作用</strong>：反驳者 + 方案设计者</p>
 <p><strong>代表发言</strong>：</p>
-<div class="quote"><span class="ts">[00:07:02] 林一</span> 看不懂账单是计量方式的问题，不是收费逻辑的问题。</div>
+<div class="quote" tabindex="0" role="button" aria-label="复制金句"><span class="ts">[00:07:02] 林舟</span> 看不懂账单是计量方式的问题，不是收费逻辑的问题。</div>
 </div>
 </div></details>
     </section>
@@ -753,7 +776,13 @@ pre.ascii-map::before{
 <h3>一、母题与分层结构</h3>
 <p><strong>母题</strong>：收费逻辑如何跟上成本结构——一场从默认方案到混合定价的收敛。</p>
 <p>全场是一条收敛线路：</p>
-<p>\<span class="mono">\</span>\<span class="mono"> 问题确立（成本错配） <span class="arrow">→</span> 方案与验证（混合制+测算） <span class="arrow">→</span> 落地约束（话术一句话化） \</span>\<span class="mono">\</span></p>
+<div class="gl-flow">
+<span class="gl-node" style="--c:#3b82f6">问题确立（成本错配）</span>
+<span class="gl-arr" style="color:#3b82f6">→</span>
+<span class="gl-node" style="--c:#3b82f6">方案与验证（混合制+测算）</span>
+<span class="gl-arr" style="color:#3b82f6">→</span>
+<span class="gl-node" style="--c:#3b82f6">落地约束（话术一句话化）</span>
+</div>
 <p>（自下而上：席位制的成本错配被指出 <span class="arrow">→</span> 混合方案+用量测算支撑 <span class="arrow">→</span> 话术一句话化收口）</p>
 <h3>二、跨层呼应</h3>
 <p><strong>1. 成本链</strong>：问题层指出错配 <span class="arrow">→</span> 方案层的混合制直接回应 <span class="arrow">→</span> 约束层的话术将方案压缩为可执行单元。</p>
@@ -763,7 +792,7 @@ pre.ascii-map::before{
 <h2 class="seg-title">洞察卡片</h2>
 <p class="seg-subtitle">反直觉规律 · 核心 + 证据原话 + 启示 + 反方</p>
 <blockquote>从本场提炼的非显而易见、可独立分享的洞察。每张卡 = 核心 + 证据原话 + 启示 + 反方。</blockquote>
-<div class="card method-card insight-card" id="insight-1"><div class="card-head"><div class="card-num">卡 1</div><div class="card-name">「看不懂账单」多数时候是计量问题，不是收费逻辑问题</div></div><div class="card-body"><div class="ifield icore"><span class="ifield-tag">核心</span>用户抱怨定价复杂时，团队常直接放弃收费逻辑（退回简单模式），但真正的病灶往往在计量的呈现方式——把计量做透明、给账单设上限，复杂逻辑就能被接受。</div><div class="quote"><span class="ts" data-ts="00:07:02" title="出处时间戳">[00:07:02] 林一</span> 看不懂账单是计量方式的问题，不是收费逻辑的问题。</div><div class="quote"><span class="ts" data-ts="00:02:11" title="出处时间戳">[00:02:11] 林一</span> 一个客户开五十个账号，真正重的可能就那五个人在跑自动化，服务器和 token 都是这五个人烧的。</div><div class="ifield"><span class="ifield-tag">启示</span>收到「定价太复杂」反馈时，先拆开问是哪一层看不懂——计价单位、计量呈现还是账单上限。三者的修法完全不同，只有第一层才需要动收费逻辑。</div><div class="ifield icounter"><span class="ifield-tag">反方</span>本场陈岸引用的私董会经验说明，同一方案在不同受众处可读性不同——管理层看得懂的阶梯，终端用户仍可能看不懂；且「包含额度+封顶」的双层结构对销售的新人培训成本未必低于纯席位（本场以「三天讲明白」的自我约束兜底，尚未经实战验证）。</div></div></div>
+<div class="card method-card insight-card" id="insight-1"><div class="card-head"><div class="card-num">卡 1</div><div class="card-name">「看不懂账单」多数时候是计量问题，不是收费逻辑问题</div></div><div class="card-body"><div class="ifield icore"><span class="ifield-tag">核心</span>用户抱怨定价复杂时，团队常直接放弃收费逻辑（退回简单模式），但真正的病灶往往在计量的呈现方式——把计量做透明、给账单设上限，复杂逻辑就能被接受。</div><div class="quote" tabindex="0" role="button" aria-label="复制金句"><span class="ts" data-ts="00:07:02" title="原文见 01_清洗稿.md 同场次 [00:07:02] 处">[00:07:02] 林舟</span> 看不懂账单是计量方式的问题，不是收费逻辑的问题。</div><div class="quote" tabindex="0" role="button" aria-label="复制金句"><span class="ts" data-ts="00:02:11" title="原文见 01_清洗稿.md 同场次 [00:02:11] 处">[00:02:11] 林舟</span> 一个客户开五十个账号，真正重的可能就那五个人在跑自动化，服务器和 token 都是这五个人烧的。</div><div class="ifield"><span class="ifield-tag">启示</span>收到「定价太复杂」反馈时，先拆开问是哪一层看不懂——计价单位、计量呈现还是账单上限。三者的修法完全不同，只有第一层才需要动收费逻辑。</div><div class="ifield icounter"><span class="ifield-tag">反方</span>本场陈舟引用的私董会经验说明，同一方案在不同受众处可读性不同——管理层看得懂的阶梯，终端用户仍可能看不懂；且「包含额度+封顶」的双层结构对销售的新人培训成本未必低于纯席位（本场以「三天讲明白」的自我约束兜底，尚未经实战验证）。</div></div></div>
 <h3 class="block-h">洞察地图</h3>
 <p>\<span class="mono">\</span>\` 维度归类 ├─ 定价结构 ──── 卡 1（计量 vs 逻辑） └─（本场仅一卡，后续场次按维度归位）</p>
 <p>贯穿线：成本真相 <span class="arrow">→</span> 方案设计 <span class="arrow">→</span> 话术约束 \<span class="mono">\</span>\`</p>
@@ -776,7 +805,7 @@ pre.ascii-map::before{
 <p class="seg-subtitle">方法论卡 · 定义 + 出处 + 怎么用</p>
 <div class="card method-card"><div class="card-head"><div class="card-num">卡 1</div><div class="card-name">收费单位对齐成本单位</div></div><div class="card-body"><div class="mfield">定义：检查收费的计量单位是否与成本的真实驱动单位一致，不一致时收费在补贴错配方。</div><div class="mfield">出处：段1 [00:02:11]</div><div class="mfield">怎么用：定价复盘时先问「我们的成本跟着什么走」——人头、用量还是账号？再把收费单位对上去；错配明显时考虑混合制过渡。</div></div></div>
 <details class="raw-details"><summary>命中校验 · 质检数据</summary><div class="raw-body">
-<table class="data-table sortable"><thead><tr><th>卡</th><th>出处标注</th><th>清洗稿可命中</th></tr></thead><tbody><tr><td>1</td><td>段1 [00:02:11]</td><td>L31</td></tr></tbody></table>
+<div class="table-wrap"><table class="data-table sortable"><thead><tr><th>卡</th><th>出处标注</th><th>清洗稿可命中</th></tr></thead><tbody><tr><td>1</td><td>段1 [00:02:11]</td><td>L31</td></tr></tbody></table></div>
 </div></details>
     </section>
 
@@ -787,12 +816,12 @@ pre.ascii-map::before{
 <h3>二、落地步骤（按优先级）</h3>
 <p>\<span class="mono">\</span>\<span class="mono"> P0  出全量客户定价测算表（前十家已回测） P1  老客户迁移口径（尤其被席位制收便宜的大户） \</span>\<span class="mono">\</span></p>
 <h3>三、行动清单</h3>
-<table class="data-table sortable"><thead><tr><th>优先级</th><th>行动</th><th>Owner</th><th>状态</th><th>依据(段·时间戳)</th></tr></thead><tbody><tr><td>P0</td><td>出正式定价测算表（全量客户）</td><td>林一</td><td>open</td><td>段1·[00:13:20]</td></tr><tr><td>P1</td><td>定老客户迁移口径</td><td>陈岸</td><td>open</td><td>段1·[00:13:20]</td></tr></tbody></table>
+<div class="table-wrap"><table class="data-table sortable"><thead><tr><th>优先级</th><th>行动</th><th>Owner</th><th>状态</th><th>依据(段·时间戳)</th></tr></thead><tbody><tr><td>P0</td><td>出正式定价测算表（全量客户）</td><td>林舟</td><td>open</td><td>段1·[00:13:20]</td></tr><tr><td>P1</td><td>定老客户迁移口径</td><td>陈舟</td><td>open</td><td>段1·[00:13:20]</td></tr></tbody></table></div>
     </section>
 
     <section id="glossary">
 <h2 class="seg-title">术语表</h2>
-<p class="seg-subtitle">32 条 · 一句话解释 + 出处段号</p>
+<p class="seg-subtitle">2 条 · 一句话解释 + 出处段号</p>
 <p>（按拼音/字母排序）</p>
 <div class="card glossary-card"><div class="glossary-term">席位制（Per-Seat）</div><div class="glossary-desc">按开通账号数收费的 SaaS 定价模式。 出处：段1</div></div>
 <div class="card glossary-card"><div class="glossary-term">包含额度（Included Quota）</div><div class="glossary-desc">每个席位附带的用量上限，超出部分按阶梯计费、设有封顶的混合定价组件。 出处：段1</div></div>
@@ -804,13 +833,13 @@ pre.ascii-map::before{
 <blockquote>标注：<strong>【约】</strong>=原话带不确定词；<strong>【存疑】</strong>=口径未核证；<strong>【口径】</strong>=原话限定需注意。</blockquote>
 <hr class="soft">
 <h3>一、定价测算</h3>
-<table class="data-table sortable"><thead><tr><th>数据项</th><th>数值</th><th>出处(说话人·时间戳)</th><th>备注</th></tr></thead><tbody><tr><td>混合制 vs 纯席位（前十家均值）</td><td>+18%</td><td>林一·[00:13:20]</td><td>【约】真实用量回测</td></tr><tr><td>混合制 vs 纯席位（最高一家）</td><td>+40%</td><td>林一·[00:13:20]</td><td>被席位制收便宜的老客户</td></tr><tr><td>席位月费（话术口径）</td><td>900 元</td><td>林一·[00:17:30]</td><td>含额度+超出阶梯封顶</td></tr></tbody></table>
+<div class="table-wrap"><table class="data-table sortable"><thead><tr><th>数据项</th><th>数值</th><th>出处(说话人·时间戳)</th><th>备注</th></tr></thead><tbody><tr><td>混合制 vs 纯席位（前十家均值）</td><td>+18%</td><td>林舟·[00:13:20]</td><td>【约】真实用量回测</td></tr><tr><td>混合制 vs 纯席位（最高一家）</td><td>+40%</td><td>林舟·[00:13:20]</td><td>被席位制收便宜的老客户</td></tr><tr><td>席位月费（话术口径）</td><td>900 元</td><td>林舟·[00:17:30]</td><td>含额度+超出阶梯封顶</td></tr></tbody></table></div>
     </section>
 
     <section id="seg1">
 <h2 class="seg-title">第1段 · 定价模式之争</h2>
-<p class="seg-subtitle">开场陈岸提出按席位收费的倾向（好理解、好销售），林一以成本结构反驳：重用量集中在少数账号，纯席位制等……</p>
-<div class="seg-meta card"><blockquote>时段：00:00:12–00:17:30 ｜ 主导：林一</blockquote></div>
+<p class="seg-subtitle">开场陈舟提出按席位收费的倾向（好理解、好销售），林舟以成本结构反驳：重用量集中在少数账号，纯席位制等……</p>
+<div class="seg-meta card"><blockquote>时段：00:00:12–00:17:30 ｜ 主导：林舟</blockquote></div>
 <nav class="seg-tabs" data-seg="seg1" aria-label="段内导航">
 <a class="chip" href="#seg1-summary">① 摘要</a>
 <a class="chip" href="#seg1-analysis">② 详析</a>
@@ -819,7 +848,7 @@ pre.ascii-map::before{
 </nav>
 <div class="block-summary" id="seg1-summary">
 <h3 class="block-h seg-bh bh-summary"><span class="bh-num">①</span>摘要</h3>
-<p>开场陈岸提出按席位收费的倾向（好理解、好销售），林一以成本结构反驳：重用量集中在少数账号，纯席位制等于为大量闲置账号买单。争论聚焦到「按用量看不懂账单」的历史教训，林一给出混合方案（席位含额度+超出阶梯封顶），并用前十家客户测算数据支撑。段末陈岸以「销售话术不能变复杂」为底线收口，林一以一句话话术回应，方案落地。</p>
+<p>开场陈舟提出按席位收费的倾向（好理解、好销售），林舟以成本结构反驳：重用量集中在少数账号，纯席位制等于为大量闲置账号买单。争论聚焦到「按用量看不懂账单」的历史教训，林舟给出混合方案（席位含额度+超出阶梯封顶），并用前十家客户测算数据支撑。段末陈舟以「销售话术不能变复杂」为底线收口，林舟以一句话话术回应，方案落地。</p>
 <h3>段结论</h3>
 <p>席位制与用量制的对立，被「席位+包含额度+阶梯封顶」的混合方案化解，数据测算与话术约束双确认。</p>
 </div>
@@ -828,11 +857,11 @@ pre.ascii-map::before{
 <div class="raw-body">
 <div class="analysis-card">
 <h4 class="ac-title">席位制的惯性与其成本错配</h4>
-<p>陈岸的出发点是认知与销售成本：客户好理解、销售好讲。林一没有否认这些好处，而是指出成本真相——用量分布高度倾斜，账号线不等于价值线。这是典型的「收费单位与成本单位错配」。</p>
+<p>陈舟的出发点是认知与销售成本：客户好理解、销售好讲。林舟没有否认这些好处，而是指出成本真相——用量分布高度倾斜，账号线不等于价值线。这是典型的「收费单位与成本单位错配」。</p>
 </div>
 <div class="analysis-card">
 <h4 class="ac-title">「看不懂账单」的再归因</h4>
-<p>陈岸引用私董会上的负面经验（按用量收被批）。林一的关键动作是把问题重新归因：账单不可读是计量呈现问题，不是收费逻辑问题——由此混合制才有讨论空间。</p>
+<p>陈舟引用私董会上的负面经验（按用量收被批）。林舟的关键动作是把问题重新归因：账单不可读是计量呈现问题，不是收费逻辑问题——由此混合制才有讨论空间。</p>
 </div>
 <div class="analysis-card">
 <h4 class="ac-title">混合方案与验证</h4>
@@ -841,13 +870,13 @@ pre.ascii-map::before{
 </div></details>
 <div class="block-quotes" id="seg1-quotes">
 <h3 class="block-h seg-bh bh-quotes"><span class="bh-num">③</span>金句 <span class="hint">点击卡片复制</span></h3>
-<p class="aside"><span class="aside-tag">[00:02:11]</span> 林一（五十个账号真正重的就五个人……）</p>
-<p class="aside"><span class="aside-tag">[00:07:02]</span> 林一（账单看不懂是计量问题不是逻辑问题……）</p>
+<p class="aside"><span class="aside-tag">[00:02:11]</span> 林舟（五十个账号真正重的就五个人……）</p>
+<p class="aside"><span class="aside-tag">[00:07:02]</span> 林舟（账单看不懂是计量问题不是逻辑问题……）</p>
 </div>
 <details class="raw-details seg-raw-details" id="seg1-raw">
 <summary><span class="bh-num">④</span>原文节选</summary>
 <div class="raw-body">
-<p class="line"><span class="sp">林一</span><span class="ts" data-ts="00:13:20">[00:13:20]</span> <span class="lc">拉了前十家客户的真实用量跑了一遍，平均能多百分之十八，最多的那家多百分之四十——就是那家被我们按席位收便宜了的老客户。</span></p>
+<p class="line"><span class="sp">林舟</span><span class="ts" data-ts="00:13:20">[00:13:20]</span> <span class="lc">拉了前十家客户的真实用量跑了一遍，平均能多百分之十八，最多的那家多百分之四十——就是那家被我们按席位收便宜了的老客户。</span></p>
 </div>
 </details>
     </section>
@@ -928,51 +957,75 @@ pre.ascii-map::before{
 })();
 
 // ============================================================
-// 4. 金句卡点击复制到剪贴板
+// 3.5 复制/提示共享 helper（金句卡、时间戳降级复制共用）
+// ============================================================
+function kbCopyText(text){
+  function fallback(){
+    const ta=document.createElement('textarea');
+    ta.value=text;document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');}catch(e){}
+    document.body.removeChild(ta);
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(text).catch(fallback);
+  }
+  fallback();
+  return Promise.resolve();
+}
+let _kbToast=null;
+function kbToast(msg){
+  if(_kbToast)_kbToast.remove();
+  const d=document.createElement('div');
+  d.className='kb-toast';d.textContent=msg;
+  document.body.appendChild(d);_kbToast=d;
+  setTimeout(()=>{d.remove();if(_kbToast===d)_kbToast=null;},2200);
+}
+
+// ============================================================
+// 4. 金句卡点击复制到剪贴板（v2.3.9 键盘可达：Enter/Space 等价点击）
 // ============================================================
 (function(){
   document.querySelectorAll('.quote').forEach(q=>{
     q.addEventListener('click',()=>{
       const text=q.innerText.replace(/^复制\s*/,'').trim();
-      if(navigator.clipboard&&navigator.clipboard.writeText){
-        navigator.clipboard.writeText(text).then(()=>{
-          q.classList.add('copied');
-          setTimeout(()=>q.classList.remove('copied'),1500);
-        }).catch(()=>{});
-      } else {
-        // 兜底
-        const ta=document.createElement('textarea');
-        ta.value=text;document.body.appendChild(ta);ta.select();
-        try{document.execCommand('copy');}catch(e){}
-        document.body.removeChild(ta);
+      kbCopyText(text).then(()=>{
         q.classList.add('copied');
         setTimeout(()=>q.classList.remove('copied'),1500);
+      });
+    });
+    q.addEventListener('keydown',e=>{
+      if(e.key==='Enter'||e.key===' '){
+        e.preventDefault();  // Space 防滚动
+        q.click();
       }
     });
   });
 })();
 
 // ============================================================
-// 5. 时间戳点击跳清洗稿并临时高亮
+// 5. 时间戳点击：同页有逐字稿锚点则跳转高亮；否则复制时间戳+toast（诚实降级）
+//    v2.3.9 修复：旧选择器 a.ts[data-ts] 从未命中（渲染产物是 span.ts[data-ts]，
+//    且主包不含逐字稿 section）——点击零反馈的死交互
 // ============================================================
 (function(){
-  document.querySelectorAll('a.ts[data-ts], .quote a[data-ts]').forEach(a=>{
-    a.addEventListener('click',e=>{
+  document.querySelectorAll('.quote .ts[data-ts]').forEach(t=>{
+    t.addEventListener('click',e=>{
       e.preventDefault();
-      e.stopPropagation();
-      const ts=a.getAttribute('data-ts');
-      const id='ts-'+ts.replace(/:/g,'-');
-      const target=document.getElementById(id);
-      if(!target) return;
-      target.scrollIntoView({behavior:'smooth',block:'center'});
-      // 临时高亮
-      target.classList.add('轻量模型');
-      // 上滚一点给 sticky topbar 留空
-      setTimeout(()=>{
-        const y=target.getBoundingClientRect().top+window.scrollY-80;
-        window.scrollTo({top:y,behavior:'smooth'});
-      },80);
-      setTimeout(()=>target.classList.remove('轻量模型'),2600);
+      e.stopPropagation();  // 别触发金句卡整卡复制
+      const ts=t.getAttribute('data-ts');
+      const target=document.getElementById('ts-'+ts.replace(/:/g,'-'));
+      if(target){
+        target.scrollIntoView({behavior:'smooth',block:'center'});
+        target.classList.add('轻量模型');
+        setTimeout(()=>{
+          const y=target.getBoundingClientRect().top+window.scrollY-80;
+          window.scrollTo({top:y,behavior:'smooth'});
+        },80);
+        setTimeout(()=>target.classList.remove('轻量模型'),2600);
+        return;
+      }
+      // 同页无锚点（主包常态）：复制时间戳，指路清洗稿检索
+      kbCopyText(ts).then(()=>kbToast('已复制 ['+ts+']，请到 01_清洗稿.md 检索'));
     });
   });
   // 原文节选里的时间戳也支持点击
@@ -988,10 +1041,21 @@ pre.ascii-map::before{
 })();
 
 // ============================================================
-// 6. 关键数据表头点击排序
+// 6. 表头点击排序（v2.3.9 修复：#data 前缀使 method/strategy/brief 待办表
+//    等其余 sortable 表全部漏绑；选择器改全局按 class 匹配）
 // ============================================================
 (function(){
-  document.querySelectorAll('#data table.sortable').forEach(table=>{
+  function parseNum(s){
+    // 中文单位感知：「2 亿」→2e8、「40 万」→4e5、「1,200」→1200；无数字返回 null
+    const t=String(s).replace(/,/g,'');
+    const m=t.match(/-?\d+(?:\.\d+)?/);
+    if(!m) return null;
+    let v=parseFloat(m[0]);
+    if(t.indexOf('亿')>-1) v*=1e8;
+    else if(t.indexOf('万')>-1) v*=1e4;
+    return v;
+  }
+  document.querySelectorAll('table.sortable').forEach(table=>{
     const thead=table.querySelector('thead');
     if(!thead) return;
     let lastIdx=-1,lastDir=1;
@@ -1011,10 +1075,9 @@ pre.ascii-map::before{
       rows.sort((ra,rb)=>{
         const a=ra.children[idx]?.innerText?.trim()||'';
         const b=rb.children[idx]?.innerText?.trim()||'';
-        // 尝试数值比较
-        const na=parseFloat(a.replace(/[^\d.\-]/g,''));
-        const nb=parseFloat(b.replace(/[^\d.\-]/g,''));
-        if(!isNaN(na)&&!isNaN(nb)&&a.match(/\d/)&&b.match(/\d/)){
+        // 数值比较（含中文单位），否则中文 locale 比较
+        const na=parseNum(a),nb=parseNum(b);
+        if(na!==null&&nb!==null){
           return (na-nb)*dir;
         }
         return a.localeCompare(b,'zh-CN')*dir;
@@ -1106,6 +1169,11 @@ pre.ascii-map::before{
     curIdx=((idx % hits.length) + hits.length) % hits.length;
     updateCurrent();
     const el=hits[curIdx];
+    // v2.3.9 修复：命中在 closed details 内时先展开祖先（仿 9b 钩子遍历），
+    // 否则 scrollTo 滚到折叠区顶部、命中处不可见——视觉上即「跳转错乱」
+    for(let p=el;p;p=p.parentElement){
+      if(p.tagName==='DETAILS'&&!p.open) p.open=true;
+    }
     const y=el.getBoundingClientRect().top + window.scrollY - OFFSET;
     window.scrollTo({top:y,behavior:'smooth'});
     updateCount();
@@ -1269,27 +1337,29 @@ document.addEventListener('click',e=>{
 })();
 
 // ============================================================
-// 12. 字号控制 A− / A+ —— 调整根 font-size，localStorage 记忆
+// 12. 字号控制 A− / A+ —— body zoom 整体缩放，localStorage 记忆
+//     v2.3.9 修复：旧实现改 documentElement font-size，但全站字号均为 px
+//     （rem 基准从未生效）→ 点了没反应。改 zoom：Chrome/Safari/Edge 全版本、
+//     Firefox 126+ 均支持；0.85–1.3 覆盖旧 13–18px 的等效幅度
 // ============================================================
 (function(){
   const dec=document.getElementById('fontDec');
   const inc=document.getElementById('fontInc');
   if(!dec || !inc) return;
-  const BASE=15, MIN=13, MAX=18, STEP=1;  // 基准 15px，范围 13-18px
-  function apply(scale){
-    const px = BASE + scale * STEP;
-    document.documentElement.style.fontSize = px + 'px';
+  const MIN=0.85, MAX=1.3, STEP=0.05, KEY='font-zoom';
+  let zoom=parseFloat(localStorage.getItem(KEY));
+  if(isNaN(zoom)) zoom=1;
+  zoom=Math.max(MIN,Math.min(MAX,zoom));
+  function apply(z){
+    zoom=z;
+    document.body.style.zoom=String(z);
   }
-  // 读取存档
-  let scale = parseInt(localStorage.getItem('font-scale') || '0', 10);
-  if(isNaN(scale)) scale = 0;
-  scale = Math.max(MIN-BASE, Math.min(MAX-BASE, scale));
-  apply(scale);
+  apply(zoom);  // 恢复存档
   dec.addEventListener('click',()=>{
-    if(scale > MIN-BASE){scale--;apply(scale);localStorage.setItem('font-scale',String(scale));}
+    if(zoom-STEP>=MIN-1e-9){const z=+(zoom-STEP).toFixed(2);apply(z);localStorage.setItem(KEY,String(z));}
   });
   inc.addEventListener('click',()=>{
-    if(scale < MAX-BASE){scale++;apply(scale);localStorage.setItem('font-scale',String(scale));}
+    if(zoom+STEP<=MAX+1e-9){const z=+(zoom+STEP).toFixed(2);apply(z);localStorage.setItem(KEY,String(z));}
   });
 })();
 

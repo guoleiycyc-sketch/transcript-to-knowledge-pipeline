@@ -6,6 +6,8 @@
 
 set +e   # grep -c 返回 0 时不退出
 DIR="${1:?用法: bash pipeline_check.sh <场次目录> [人名...]}"
+# 绝对化：下方 cd "$DIR" 后再拼 $DIR 前缀的调用（verify/audit/检查6/8）会双层路径落空 → 假绿/假报（v3.3.5）
+DIR="$(cd "$DIR" 2>/dev/null && pwd)" || { echo "✗ 目录不存在或不可进入: $1"; exit 2; }
 shift || true
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -35,7 +37,7 @@ names = given or sorted(set(heads) - {"现场", "参会者", "未识别"})
 cnt = collections.Counter(heads)
 print("NAMES " + " ".join(names))
 print("BAD " + str(len(re.findall(r"^\*\*【[^】]*\*\* \[", txt, re.M))))
-print("REM " + str(sum(c for n, c in cnt.items() if n.startswith("说话人"))))
+print("REM " + str(sum(c for n, c in cnt.items() if n.startswith("说话人") and "·" not in n)))
 for n in names:
     print("CNT %s %d" % (n, cnt.get(n, 0)))
 ' 01_清洗稿.md "$NAMES") || { err "检查 1 python 计数失败"; exit 2; }
@@ -88,7 +90,7 @@ echo
 echo -e "${B}[检查 3] 金句格式${N}"
 GOLD=$(LC_ALL=C grep -cE '^[0-9]+\. \*\*【' 01_清洗稿.md)
 [ "$GOLD" -ge 5 ] && ok "附录 B 金句速查: $GOLD 条" || warn "金句速查仅 $GOLD 条"
-ANCHOR=$(LC_ALL=C grep -c 'APPEND_MARKER' 01_清洗稿.md)
+ANCHOR=$(LC_ALL=C grep -c '<!-- APPEND_MARKER' 01_清洗稿.md)
 [ "$ANCHOR" -eq 0 ] && ok "锚点残留=0" || err "锚点残留=$ANCHOR"
 
 # === 检查 4：结构完整性 ===
@@ -99,6 +101,9 @@ for f in 01_清洗稿.md 02_主题整理 03_方法论清单.md 04_术语表.md \
          08_洞察卡片.md 09_战略诊断与行动清单.md README.md; do
   [ -e "$f" ] && ok "$f" || err "MISSING $f"
 done
+if [ ! -f "00a_一分钟简报.md" ]; then
+  warn "无 00a_一分钟简报.md——若本场为轻加强及以上，建议补一分钟简报（契约见 references/03）"
+fi
 NSEG=$(ls 02_主题整理/ 2>/dev/null | grep -cE '^第[0-9]+段')
 echo "  02 段数: $NSEG"
 CARDS=$(LC_ALL=C grep -cE '^## 卡 [0-9]+' 08_洞察卡片.md 2>/dev/null || echo 0)
@@ -120,6 +125,19 @@ if [ -x "$(command -v python3)" ] && [ -f 01_清洗稿.md ]; then
     err "引文忠实性硬伤（verify_quotes）"
     echo "$VQ_OUT" | sed 's/^/    /'
   fi
+fi
+# 4.7 内容一致性审计（v3.3.3 2026-10-15：多维度代理评审检查项沉淀——05回合数(err)/06数据覆盖/09死线覆盖/00-09 Owner 冲突）
+if [ -x "$(command -v python3)" ] && [ -f "$SKILL_DIR/scripts/audit_content.py" ] && [ -f 01_清洗稿.md ]; then
+  AC_OUT=$(python3 "$SKILL_DIR/scripts/audit_content.py" "$DIR" 2>/dev/null)
+  AC_RC=$?
+  AC_ERRN=$(echo "$AC_OUT" | tail -1 | grep -oE 'err [0-9]+' | grep -oE '[0-9]+')
+  if [ "$AC_ERRN" = "0" ] || [ -z "$AC_ERRN" ]; then
+    ok "内容一致性（$(echo "$AC_OUT" | tail -1)）"
+  else
+    err "内容一致性硬伤（audit_content，err=$AC_ERRN）"
+  fi
+  echo "$AC_OUT" | grep -E '^  ⚠' | head -6 | sed 's/^/    /'
+  [ "$(echo "$AC_OUT" | grep -cE '^  ⚠')" -gt 6 ] && echo "    …（warn 详单见单跑 audit_content.py）"
 fi
 MUTI=$(grep -cE '^\*\*母题\*\*' 07_议题关联地图.md 2>/dev/null || echo 0)
 [ "$MUTI" -ge 1 ] && ok "议题地图有母题" || warn "议题地图缺母题"

@@ -206,7 +206,8 @@ def render_table(table_lines, sortable=False):
             continue
         body.append(r)
     cls = ' class="data-table sortable"' if sortable else ' class="md-table"'
-    out = [f"<table{cls}><thead><tr>"]
+    # v2.3.9 表格包 table-wrap：窄屏宽表横向滚动（裸 table 溢出容器会被裁切）
+    out = ['<div class="table-wrap">', f"<table{cls}><thead><tr>"]
     for h in header:
         out.append(f"<th>{inline_fmt(h)}</th>")
     out.append("</tr></thead><tbody>")
@@ -215,7 +216,7 @@ def render_table(table_lines, sortable=False):
         for c in row:
             out.append(f"<td>{inline_fmt(c)}</td>")
         out.append("</tr>")
-    out.append("</tbody></table>")
+    out.append("</tbody></table></div>")
     return "".join(out)
 
 
@@ -251,10 +252,17 @@ def render_speaker_line(payload, with_ts_link=False, ts_target_prefix="ts"):
     rest = re.sub(r'["""\']+$', "", rest)
     rest_html = inline_fmt(rest)
     if with_ts_link:
-        ts_html = f'<span class="ts" data-ts="{esc(ts)}" title="出处时间戳">[{esc(ts)}] {esc(sp)}</span>'
+        # v2.3.9 诚实降级：主包不含逐字稿锚点（render_transcript 未被组装），
+        # 时间戳不做死跳转 <a>，改静态徽标 + title 指路 01_清洗稿.md；
+        # 点击行为（复制时间戳）由 TEMPLATE 第 5 节 JS 接管
+        ts_html = (f'<span class="ts" data-ts="{esc(ts)}"'
+                   f' title="原文见 01_清洗稿.md 同场次 [{esc(ts)}] 处">'
+                   f'[{esc(ts)}] {esc(sp)}</span>')
     else:
         ts_html = f'<span class="ts">[{esc(ts)}] {esc(sp)}</span>'
-    return f'<div class="quote">{ts_html} {rest_html}</div>'
+    # tabindex/role：金句卡复制操作键盘可达（Enter/Space 触发，见 TEMPLATE 第 4 节）
+    return (f'<div class="quote" tabindex="0" role="button" aria-label="复制金句">'
+            f'{ts_html} {rest_html}</div>')
 
 
 def render_blocks_generic(blocks, sortable_tables=False):
@@ -691,8 +699,10 @@ def render_method_card(card_blocks):
 
 def render_glossary(md: str):
     blocks = md_to_blocks(md)
+    # v2.3.9 副标题计数动态化（原写死「32 条」，与实际 04 卡数不符即假数据）
+    n_terms = sum(1 for k, _ in blocks if k == "h3")
     out = ['<h2 class="seg-title">术语表</h2>',
-           '<p class="seg-subtitle">32 条 · 一句话解释 + 出处段号</p>']
+           f'<p class="seg-subtitle">{n_terms} 条 · 一句话解释 + 出处段号</p>']
     i = 1
     n = len(blocks)
     while i < n:
@@ -854,6 +864,8 @@ TEMPLATE = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>聊聊AI工业应用 · 全场整理</title>
+<script>/* 主题恢复前置（防暗色用户首帧白闪）：在 CSS 解析前同步设置，与第 3 节切换器共用 localStorage 键 */
+try{if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}</script>
 <style>
 :root{
   --bg:#f7f8fa;--surface:#fff;--text:#1f2329;--muted:#646a73;--border:#ebedf0;
@@ -1130,12 +1142,22 @@ blockquote{
   margin-right:8px;font-weight:600;vertical-align:middle;
 }
 .quote a.ts:hover{text-decoration:none;opacity:.9}
+/* v2.3.9 时间戳可点（复制到剪贴板，见 JS 第 5 节）：指针提示 */
+.quote .ts[data-ts]{cursor:pointer}
 .quote::after{
   content:"复制";position:absolute;right:12px;top:12px;
   font-size:11px;color:var(--muted);opacity:0;transition:opacity .15s;
 }
-.quote:hover::after{opacity:.7}
+/* :focus 与 :hover 并列：触屏点按/键盘聚焦也能看到复制提示（触屏无 hover） */
+.quote:hover::after,.quote:focus::after{opacity:.7}
 .quote.copied::after{content:"已复制 ✓";opacity:1;color:#2da94f}
+/* v2.3.9 复制时间戳的 toast 提示（触屏/无 hover 环境的反馈通道） */
+.kb-toast{
+  position:fixed;left:50%;bottom:32px;transform:translateX(-50%);
+  background:#24292f;color:#fff;padding:8px 18px;border-radius:8px;
+  font-size:13px;line-height:1.5;z-index:9999;max-width:86vw;text-align:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.28);
+}
 
 /* 原文节选折叠 */
 details.raw-details{
@@ -1197,6 +1219,8 @@ p.aside{
 .aside-tag{font-family:ui-monospace,monospace;color:var(--accent);font-weight:600}
 
 /* 表格 */
+/* v2.3.9 横向滚动容器：render_table 输出统一包裹，窄屏宽表不再溢出裁切 */
+.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .md-table,.data-table{
   border-collapse:collapse;width:100%;font-size:13px;margin:14px 0;
   background:var(--surface);border:1px solid var(--border);border-radius:8px;
@@ -1353,6 +1377,11 @@ pre.ascii-map{
   padding:14px 18px;cursor:pointer;list-style:none;user-select:none;
 }
 .brief-card>summary::-webkit-details-marker{display:none}
+/* v2.3.9 Firefox 消双三角：list-style:none 之外补 ::marker 清空
+   （FF 的 summary marker 不受 webkit 前缀规则影响） */
+.brief-card>summary::marker,
+details.raw-details>summary::marker,
+details.seg-raw-details>summary::marker{content:""}
 .brief-card>summary::before{
   content:"▶ ";font-size:10px;margin-right:2px;display:inline-block;
   transition:transform .15s;color:var(--accent);
@@ -1639,51 +1668,75 @@ pre.ascii-map::before{
 })();
 
 // ============================================================
-// 4. 金句卡点击复制到剪贴板
+// 3.5 复制/提示共享 helper（金句卡、时间戳降级复制共用）
+// ============================================================
+function kbCopyText(text){
+  function fallback(){
+    const ta=document.createElement('textarea');
+    ta.value=text;document.body.appendChild(ta);ta.select();
+    try{document.execCommand('copy');}catch(e){}
+    document.body.removeChild(ta);
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    return navigator.clipboard.writeText(text).catch(fallback);
+  }
+  fallback();
+  return Promise.resolve();
+}
+let _kbToast=null;
+function kbToast(msg){
+  if(_kbToast)_kbToast.remove();
+  const d=document.createElement('div');
+  d.className='kb-toast';d.textContent=msg;
+  document.body.appendChild(d);_kbToast=d;
+  setTimeout(()=>{d.remove();if(_kbToast===d)_kbToast=null;},2200);
+}
+
+// ============================================================
+// 4. 金句卡点击复制到剪贴板（v2.3.9 键盘可达：Enter/Space 等价点击）
 // ============================================================
 (function(){
   document.querySelectorAll('.quote').forEach(q=>{
     q.addEventListener('click',()=>{
       const text=q.innerText.replace(/^复制\\s*/,'').trim();
-      if(navigator.clipboard&&navigator.clipboard.writeText){
-        navigator.clipboard.writeText(text).then(()=>{
-          q.classList.add('copied');
-          setTimeout(()=>q.classList.remove('copied'),1500);
-        }).catch(()=>{});
-      } else {
-        // 兜底
-        const ta=document.createElement('textarea');
-        ta.value=text;document.body.appendChild(ta);ta.select();
-        try{document.execCommand('copy');}catch(e){}
-        document.body.removeChild(ta);
+      kbCopyText(text).then(()=>{
         q.classList.add('copied');
         setTimeout(()=>q.classList.remove('copied'),1500);
+      });
+    });
+    q.addEventListener('keydown',e=>{
+      if(e.key==='Enter'||e.key===' '){
+        e.preventDefault();  // Space 防滚动
+        q.click();
       }
     });
   });
 })();
 
 // ============================================================
-// 5. 时间戳点击跳清洗稿并临时高亮
+// 5. 时间戳点击：同页有逐字稿锚点则跳转高亮；否则复制时间戳+toast（诚实降级）
+//    v2.3.9 修复：旧选择器 a.ts[data-ts] 从未命中（渲染产物是 span.ts[data-ts]，
+//    且主包不含逐字稿 section）——点击零反馈的死交互
 // ============================================================
 (function(){
-  document.querySelectorAll('a.ts[data-ts], .quote a[data-ts]').forEach(a=>{
-    a.addEventListener('click',e=>{
+  document.querySelectorAll('.quote .ts[data-ts]').forEach(t=>{
+    t.addEventListener('click',e=>{
       e.preventDefault();
-      e.stopPropagation();
-      const ts=a.getAttribute('data-ts');
-      const id='ts-'+ts.replace(/:/g,'-');
-      const target=document.getElementById(id);
-      if(!target) return;
-      target.scrollIntoView({behavior:'smooth',block:'center'});
-      // 临时高亮
-      target.classList.add('轻量模型');
-      // 上滚一点给 sticky topbar 留空
-      setTimeout(()=>{
-        const y=target.getBoundingClientRect().top+window.scrollY-80;
-        window.scrollTo({top:y,behavior:'smooth'});
-      },80);
-      setTimeout(()=>target.classList.remove('轻量模型'),2600);
+      e.stopPropagation();  // 别触发金句卡整卡复制
+      const ts=t.getAttribute('data-ts');
+      const target=document.getElementById('ts-'+ts.replace(/:/g,'-'));
+      if(target){
+        target.scrollIntoView({behavior:'smooth',block:'center'});
+        target.classList.add('轻量模型');
+        setTimeout(()=>{
+          const y=target.getBoundingClientRect().top+window.scrollY-80;
+          window.scrollTo({top:y,behavior:'smooth'});
+        },80);
+        setTimeout(()=>target.classList.remove('轻量模型'),2600);
+        return;
+      }
+      // 同页无锚点（主包常态）：复制时间戳，指路清洗稿检索
+      kbCopyText(ts).then(()=>kbToast('已复制 ['+ts+']，请到 01_清洗稿.md 检索'));
     });
   });
   // 原文节选里的时间戳也支持点击
@@ -1699,10 +1752,21 @@ pre.ascii-map::before{
 })();
 
 // ============================================================
-// 6. 关键数据表头点击排序
+// 6. 表头点击排序（v2.3.9 修复：#data 前缀使 method/strategy/brief 待办表
+//    等其余 sortable 表全部漏绑；选择器改全局按 class 匹配）
 // ============================================================
 (function(){
-  document.querySelectorAll('#data table.sortable').forEach(table=>{
+  function parseNum(s){
+    // 中文单位感知：「2 亿」→2e8、「40 万」→4e5、「1,200」→1200；无数字返回 null
+    const t=String(s).replace(/,/g,'');
+    const m=t.match(/-?\\d+(?:\\.\\d+)?/);
+    if(!m) return null;
+    let v=parseFloat(m[0]);
+    if(t.indexOf('亿')>-1) v*=1e8;
+    else if(t.indexOf('万')>-1) v*=1e4;
+    return v;
+  }
+  document.querySelectorAll('table.sortable').forEach(table=>{
     const thead=table.querySelector('thead');
     if(!thead) return;
     let lastIdx=-1,lastDir=1;
@@ -1722,10 +1786,9 @@ pre.ascii-map::before{
       rows.sort((ra,rb)=>{
         const a=ra.children[idx]?.innerText?.trim()||'';
         const b=rb.children[idx]?.innerText?.trim()||'';
-        // 尝试数值比较
-        const na=parseFloat(a.replace(/[^\\d.\\-]/g,''));
-        const nb=parseFloat(b.replace(/[^\\d.\\-]/g,''));
-        if(!isNaN(na)&&!isNaN(nb)&&a.match(/\\d/)&&b.match(/\\d/)){
+        // 数值比较（含中文单位），否则中文 locale 比较
+        const na=parseNum(a),nb=parseNum(b);
+        if(na!==null&&nb!==null){
           return (na-nb)*dir;
         }
         return a.localeCompare(b,'zh-CN')*dir;
@@ -1817,6 +1880,11 @@ pre.ascii-map::before{
     curIdx=((idx % hits.length) + hits.length) % hits.length;
     updateCurrent();
     const el=hits[curIdx];
+    // v2.3.9 修复：命中在 closed details 内时先展开祖先（仿 9b 钩子遍历），
+    // 否则 scrollTo 滚到折叠区顶部、命中处不可见——视觉上即「跳转错乱」
+    for(let p=el;p;p=p.parentElement){
+      if(p.tagName==='DETAILS'&&!p.open) p.open=true;
+    }
     const y=el.getBoundingClientRect().top + window.scrollY - OFFSET;
     window.scrollTo({top:y,behavior:'smooth'});
     updateCount();
@@ -1980,27 +2048,29 @@ document.addEventListener('click',e=>{
 })();
 
 // ============================================================
-// 12. 字号控制 A− / A+ —— 调整根 font-size，localStorage 记忆
+// 12. 字号控制 A− / A+ —— body zoom 整体缩放，localStorage 记忆
+//     v2.3.9 修复：旧实现改 documentElement font-size，但全站字号均为 px
+//     （rem 基准从未生效）→ 点了没反应。改 zoom：Chrome/Safari/Edge 全版本、
+//     Firefox 126+ 均支持；0.85–1.3 覆盖旧 13–18px 的等效幅度
 // ============================================================
 (function(){
   const dec=document.getElementById('fontDec');
   const inc=document.getElementById('fontInc');
   if(!dec || !inc) return;
-  const BASE=15, MIN=13, MAX=18, STEP=1;  // 基准 15px，范围 13-18px
-  function apply(scale){
-    const px = BASE + scale * STEP;
-    document.documentElement.style.fontSize = px + 'px';
+  const MIN=0.85, MAX=1.3, STEP=0.05, KEY='font-zoom';
+  let zoom=parseFloat(localStorage.getItem(KEY));
+  if(isNaN(zoom)) zoom=1;
+  zoom=Math.max(MIN,Math.min(MAX,zoom));
+  function apply(z){
+    zoom=z;
+    document.body.style.zoom=String(z);
   }
-  // 读取存档
-  let scale = parseInt(localStorage.getItem('font-scale') || '0', 10);
-  if(isNaN(scale)) scale = 0;
-  scale = Math.max(MIN-BASE, Math.min(MAX-BASE, scale));
-  apply(scale);
+  apply(zoom);  // 恢复存档
   dec.addEventListener('click',()=>{
-    if(scale > MIN-BASE){scale--;apply(scale);localStorage.setItem('font-scale',String(scale));}
+    if(zoom-STEP>=MIN-1e-9){const z=+(zoom-STEP).toFixed(2);apply(z);localStorage.setItem(KEY,String(z));}
   });
   inc.addEventListener('click',()=>{
-    if(scale < MAX-BASE){scale++;apply(scale);localStorage.setItem('font-scale',String(scale));}
+    if(zoom+STEP<=MAX+1e-9){const z=+(zoom+STEP).toFixed(2);apply(z);localStorage.setItem(KEY,String(z));}
   });
 })();
 

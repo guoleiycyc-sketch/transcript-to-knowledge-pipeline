@@ -67,10 +67,10 @@ def view_quotes(atoms, max_sens='P'):
     lines = [f'# 引语库 · 自动视图（脱敏≤{max_sens}）', '',
              f'> {len(quotes)} 条（已过滤敏感 {dropped} 条）', '']
     cur = None
-    for a in sorted(quotes, key=lambda x: (x['session'], x['ts'])):
+    for a in sorted(quotes, key=lambda x: (x['session'], x.get('ts') or x.get('anchor') or '')):
         if a['session'] != cur:
             lines.append(f'\n## {a["session"]}'); cur = a['session']
-        lines.append(f"- [{a['ts']}] {a['speaker']}：{a['text']}")
+        lines.append(f"- [{a.get('ts') or a.get('anchor') or ''}] {a['speaker']}：{a.get('text') or a.get('body') or ''}")
     return '\n'.join(lines)
 
 CSS = '''body{font-family:"PingFang SC",system-ui,sans-serif;max-width:860px;margin:40px auto;padding:0 20px;line-height:1.8;color:#1f2937;background:#fafaf8}
@@ -95,10 +95,11 @@ def view_share_html(atoms):
         h.append(f'<li>{html.escape(t)} <span class="tag">{len(s)} 场</span></li>')
     h.append('</ul><h2>金句精选</h2>')
     cur = None
-    for a in sorted(quotes, key=lambda x: (x['session'], x['ts'])):
+    for a in sorted(quotes, key=lambda x: (x['session'], x.get('ts') or x.get('anchor') or '')):
         if a['session'] != cur:
             h.append(f'<h2>{a["session"]}</h2>'); cur = a['session']
-        h.append(f'<div class="q"><span class="meta">[{a["ts"]}] {html.escape(a["speaker"])}</span><br>{html.escape(a["text"])}</div>')
+        _ts = a.get('ts') or a.get('anchor') or ''; _tx = a.get('text') or a.get('body') or ''
+        h.append(f'<div class="q"><span class="meta">[{_ts}] {html.escape(a["speaker"])}</span><br>{html.escape(_tx)}</div>')
     h.append('</body></html>')
     return '\n'.join(h)
 

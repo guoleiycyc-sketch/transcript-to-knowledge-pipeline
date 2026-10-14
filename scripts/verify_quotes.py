@@ -55,7 +55,9 @@ def main():
     if not turn_map:
         print('（无 01 清洗稿或无正文回合，跳过）'); return 0
 
-    targets = ['05_人物角色卡.md', '08_洞察卡片.md', 'README.md'] + \
+    targets = ['00_执行摘要.md', '00a_一分钟简报.md', '03_方法论清单.md',
+               '04_术语表.md', '05_人物角色卡.md', '06_关键数据速查.md',
+               '08_洞察卡片.md', '09_战略诊断与行动清单.md', 'README.md'] + \
               sorted(glob.glob(os.path.join(d, '02_主题整理', '*.md')))
     fails, warns = [], []
     for f in targets:
@@ -77,6 +79,23 @@ def main():
         for ts in set(re.findall(r'\[(\d{1,2}:\d{2}(?::\d{2})?)\]', txt)):
             if not any(t == ts for _, t in turn_map):
                 warns.append(f'{rel}: 孤立时间戳 [{ts}]（场景描述则可，引用则改指向）')
+
+    # v3.3.3 附录 B 金句候选 vs 正文同文块（P57 关联：附录时戳漂移/誊抄失真在此拦截）
+    # 附录 B 是子代理二次誊抄产物，(人,ts) 必须命中正文且引文逐字（P50/P57 的机器闸门）
+    p1 = os.path.join(d, '01_清洗稿.md')
+    if os.path.exists(p1):
+        s1 = open(p1, encoding='utf-8').read()
+        app_b = re.findall(r'## 附录 B.*?(?=## 附录 C|\Z)', s1, re.S)
+        for blk in app_b:
+            for who, ts, quote in QUOTE_RE.findall(blk):
+                bases = turn_map.get((who, ts)) or []
+                if not bases:
+                    warns.append(f'01附录B: [{ts}]{who} 候选时戳不在正文（誊抄漂移，下游禁直抄）')
+                    continue
+                for seg_raw in re.split(r'…+|\.\.\.+|——', quote):
+                    seg = norm(seg_raw)
+                    if len(seg) > 10 and not any(seg in norm(base) for base in bases):
+                        warns.append(f'01附录B: [{ts}]{who} 候选不逐字:「{seg_raw[:36]}」')
 
     # 反方质量启发式（只警告，不阻断——防误杀真实反方）
     p8 = os.path.join(d, '08_洞察卡片.md')

@@ -46,13 +46,52 @@ def main() -> int:
             for needle, name in [('class="quote', "金句卡"),
                                  ('id="insight-1"', "洞察卡锚点"),
                                  ('id="people"', "人物区锚点"),
-                                 ("陈岸", "人物内容"),
+                                 ("陈舟", "人物内容"),
                                  ("看不懂账单", "金句内容"),
                                  ("母题", "总览母题")]:
                 if needle not in t:
                     fails.append(f"HTML 缺 {name}（未命中 {needle!r}）")
             if "死锚点" in r.stdout:
                 fails.append(f"渲染自检报死锚点: {r.stdout[:200]}")
+            if f'href="{d.name}_简报.html"' not in t:
+                fails.append("完整版横幅缺一分钟版回链")
+
+        # 1b. 一分钟简报页（00a 存在 → 双产出）
+        op = d / f"{d.name}_简报.html"
+        if not op.exists():
+            fails.append("简报页未生成（00a 存在时应双产出）")
+        else:
+            t2 = op.read_text(encoding="utf-8")
+            for needle, name in [("一句话结论", "结论块"),
+                                 (f'href="{d.name}.html#seg1"', "§1 钻透链接"),
+                                 (f'href="{d.name}.html#insight-1"', "卡1 钻透链接"),
+                                 (f'href="{d.name}.html#strategy"', "待办区钻透链接"),
+                                 (f'<a href="{d.name}.html">完整版', "回链完整版")]:
+                if needle not in t2:
+                    fails.append(f"简报页缺 {name}（未命中 {needle!r}）")
+
+        # 1c. --brief-inline 冒烟（00a 内嵌主包第 0 层，不产独立简报页）
+        op.unlink(missing_ok=True)  # 清掉 1b 产物，验证 inline 模式不再产出
+        r2 = subprocess.run(
+            [sys.executable, str(SCRIPT_DIR / "render_pack.py"), str(d), "--brief-inline"],
+            capture_output=True, text=True)
+        if r2.returncode != 0:
+            fails.append(f"brief-inline 渲染退出码 {r2.returncode}: {(r2.stderr or r2.stdout)[-300:]}")
+        else:
+            t3 = (d / f"{d.name}.html").read_text(encoding="utf-8")
+            for needle, name in [
+                    ('<section id="onepager">', "第0层内嵌卡"),
+                    ('class="brief-card onepager-inline"', "折叠卡样式复用"),
+                    ('href="#onepager"', "横幅⓪链接"),
+                    ('href="#seg1"', "页内§1钻透"),
+                    ('href="#insight-1"', "页内卡1钻透"),
+                    ('href="#strategy"', "页内待办区钻透")]:
+                if needle not in t3:
+                    fails.append(f"brief-inline 主包缺 {name}（未命中 {needle!r}）")
+            if "死锚点" in r2.stdout:
+                fails.append(f"brief-inline 自检报死锚点: {r2.stdout[:200]}")
+            if op.exists():
+                fails.append("brief-inline 不应产出独立简报页")
 
         # 2. 引文核证（02/05/08 引文逐字 + 时间戳命中 01）
         v = subprocess.run([sys.executable, str(SCRIPT_DIR / "verify_quotes.py"), str(d)],
