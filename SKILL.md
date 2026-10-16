@@ -7,7 +7,7 @@ description_zh: "对话录音转写稿清洗：说话人映射+逐回合还原�
 description_en: "Clean dialogue transcripts into a 9-module knowledge pack + searchable HTML"
 category: "Productivity"
 author: "Guo Lei"
-version: 3.3.1
+version: 3.3.5
 ---
 
 # Transcript → Knowledge Pipeline
@@ -107,8 +107,8 @@ grep -cE '^\*\*【[^】]*\*\* \[' <场次目录>/01_清洗稿.md   # 应 = 0
     ├── 08_洞察卡片.md             ← 每张 = 核心/证据/启示/反方（反方必填）
     ├── 09_战略诊断与行动清单.md   ← 凡有待办即出；开头=上期行动回顾（文件名固定，渲染器按此检测）
     ├── README.md
-    ├── <场次名>.html              ← render_pack.py 一键生成（文件名=场次目录名）
-    ├── <场次名>_简报.html          ← render_pack 双产出（00a 存在时），单屏钻透版
+    ├── <场次名>.html              ← render_pack.py 一键生成（文件名=场次目录名；--brief-inline 时 00a 内嵌为第 0 层首屏折叠卡，单文件交付）
+    ├── <场次名>_简报.html          ← 仅默认模式产出（00a 存在且未加 --brief-inline 时的独立单屏页；内嵌模式不产此文件）
     ├── <场次名>_清洗稿.html        ← render_transcript.py 外发客户版（命名同规范，2026-09-16 起）
     └── <场次名>_清洗稿.md          ← 同上 --format md（纯 Markdown 外发版，微信/协作工具直发）
   _全局层/                          ← 跨场累积层（目录名按项目习惯，可选，见 references/07）
@@ -138,8 +138,8 @@ mkdir -p "<项目根>/<场次名>_YYYY-MM-DD/02_主题整理"
 # 2. 写 01_清洗稿（分块 Write/Edit，体例见 references/02）
 # 3. 写 00、02-09 模块（格式契约见 references/03）
 # 3b. 写 00a_一分钟简报（模块齐后的封口动作，轻加强及以上；五段契约见 references/03）
-# 4. 渲染 HTML（00a 存在时双产出简报页；脚本路径相对本 skill 目录）
-python3 <skill目录>/scripts/render_pack.py <场次目录>
+# 4. 渲染 HTML（--brief-inline：00a 内嵌主包第 0 层首屏折叠卡、不产独立简报页，推荐用法；脚本路径相对本 skill 目录）
+python3 <skill目录>/scripts/render_pack.py <场次目录> --brief-inline
 # 4b. 清洗稿外发版（客户项目需要发逐字稿时；见 references/04「清洗稿外发版」）
 python3 <skill目录>/scripts/render_transcript.py <场次目录>              # HTML 版
 python3 <skill目录>/scripts/render_transcript.py <场次目录> --format md  # MD 直发版
