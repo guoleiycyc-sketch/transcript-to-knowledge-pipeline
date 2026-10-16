@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 [![Python 3.6+](https://img.shields.io/badge/python-3.6%2B-3776AB.svg)](https://www.python.org)
 [![Dependencies 0](https://img.shields.io/badge/dependencies-0-success.svg)]()
-[![Release](https://img.shields.io/badge/release-v3.3.4-blue.svg)](./CHANGELOG.md)
+[![Release](https://img.shields.io/badge/release-v3.3.6-blue.svg)](./CHANGELOG.md)
 
 > 把一份对话录音转写稿，清洗成 **9 模块知识包 + 双击即开、可全文搜索的 HTML** —— 每条金句可回跳原文时间戳的 Claude Code skill。
 
