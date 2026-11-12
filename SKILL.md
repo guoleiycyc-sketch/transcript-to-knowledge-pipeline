@@ -7,7 +7,7 @@ description_zh: "对话录音转写稿清洗：说话人映射+逐回合还原�
 description_en: "Clean dialogue transcripts into a 9-module knowledge pack + searchable HTML"
 category: "Productivity"
 author: "Guo Lei"
-version: 3.3.6
+version: 3.3.7
 ---
 
 # Transcript → Knowledge Pipeline
@@ -165,6 +165,7 @@ python3 <skill目录>/scripts/verify_quotes.py <场次目录>
 | 装机/改动后端到端自检 | `python3 <skill目录>/scripts/selftest.py` |
 | 单场脱敏分享版 HTML | `render_pack.py <场次目录> --share [--alias "陈舟→A,林舟→B"]` |
 | 清洗稿外发客户版 | `render_transcript.py <场次目录>`（HTML）/ `--format md`（纯 MD 直发）——剔除映射/词表等内部块，显示层套真名，产物按日期归档 `03_外发交付/<日期>/`，见 references/04 |
+| 模块契约核对（02/03/05/06/07/08/09/00a 结构硬项，P60 防再发，已挂检查 9） | `python3 <skill目录>/scripts/check_module_contract.py <场次目录>` |
 | 清洗忠实度审计（原稿 vs 清洗稿机械对比） | `python3 <skill目录>/scripts/diff_report.py <原稿.md> <场次目录>` |
 | 看完整示例产物 | `example/示例场_SaaS定价讨论_2026-01-15/`（双击 HTML） |
 
