@@ -3,11 +3,15 @@ name: transcript-to-knowledge-pipeline
 description: "当用户要把对话录音的转写稿（飞书妙记/腾讯会议/得到大脑/Whisper/手工稿）加工成结构化成果时使用：说话人映射、ASR 错字订正对照表、9 模块知识包、双击即开可全文搜索、金句跳时间戳的 HTML。以下意图一律触发：把转写稿/录音清洗、整理成知识包、可搜索网页或 HTML 文档；新录音到了，按「老规矩/标准管线出全套」「复现上次那条管线」；一批存量旧录音批量清洗；委派模式（轻量模型子代理出清洗稿、主对话做映射与质检）。仅快速回顾一场录音、检索往期录音里的观点原话、把已有的 01 清洗稿改写成会议纪要、出评估分析报告的，不用本 skill。"
 display_name: "郭磊的录音挖矿机"
 display_name_en: "Guolei's Recording Miner"
+slug: "transcript-to-knowledge-pipeline"
+displayName: "郭磊的录音挖矿机"
+license: "MIT"
+homepage: "https://github.com/guoleiycyc-sketch/transcript-to-knowledge-pipeline"
 description_zh: "对话录音转写稿清洗：说话人映射+逐回合还原，产出 9 模块知识包与可搜索 HTML"
 description_en: "Clean dialogue transcripts into a 9-module knowledge pack + searchable HTML"
 category: "Productivity"
 author: "Guo Lei"
-version: 3.3.7
+version: 3.3.8
 ---
 
 # Transcript → Knowledge Pipeline
